@@ -1,0 +1,12 @@
+WebCodex original-file upload fixture
+This file contains synthetic test data only.
+
+Verification code: WIDGET-7391-AC
+Table:
+Item,Quantity
+Amber,17
+Indigo,42
+Teal,63
+
+Chinese text: 这是用于原文件上传验证的合成样例。
+Transport success does not prove attachment to the current conversation.

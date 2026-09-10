@@ -1,0 +1,50 @@
+{
+  "name": "webcodex-mcp",
+  "version": "0.14.0-preview.2",
+  "description": "Workspace-scoped local development tools for ChatGPT over MCP",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "bin": {
+    "webcodex-mcp": "dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node scripts/run-tests.mjs",
+    "test:symlinks": "npm run build && node scripts/test-file-symlinks.mjs",
+    "start": "node dist/src/cli.js",
+    "doctor": "node dist/src/cli.js doctor",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "export:tools": "node scripts/export-tools.mjs",
+    "audit:repo": "node scripts/audit-repository.mjs",
+    "test:repo": "node --test scripts/test-repository-audit.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "diff": "8.0.4",
+    "smol-toml": "1.8.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "typescript": "5.9.3"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "chatgpt",
+    "local-development",
+    "codex",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xq3427/WebCodex.git"
+  },
+  "homepage": "https://github.com/xq3427/WebCodex#readme",
+  "bugs": {
+    "url": "https://github.com/xq3427/WebCodex/issues"
+  }
+}

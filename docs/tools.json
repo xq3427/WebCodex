@@ -1,0 +1,6437 @@
+{
+  "server": {
+    "name": "webcodex-mcp",
+    "title": "WebCodex · Example device",
+    "version": "0.14.0-preview.2"
+  },
+  "tools": [
+    {
+      "name": "system_status",
+      "description": "Inspect service capabilities and execution mode before using local development tools.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "codex_session_list",
+      "description": "Find local Codex sessions by title/project path, optionally including archived history. Requires locally enabled session access. Read-only; does not run a Codex model. Follow next_cursor even when a filtered page is empty.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "include_archived": {
+            "type": "boolean",
+            "default": false
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "codex_session_read",
+      "description": "Read visible Codex messages, continuing a partial message before older history. Reassemble by entry_id and chunk.offset_bytes; deduplicate retries. Check omitted_content, scan_complete and next_cursor. Internal reasoning/policy excluded; complete records redacted before chunking. Tool content requires include_tools=true.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          },
+          "include_tools": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "codex_session_search",
+      "description": "Find case-sensitive literal text within one local Codex session after credential redaction. Returns one bounded snippet per matching entry. Use context_cursor with codex_session_read and the same include_tools; use next_cursor to continue searching even when matches is empty. Check scan_complete, scan_incomplete and warnings. This is a bounded scan, not a full-library index.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          },
+          "include_tools": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "session_id",
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "codex_session_handoff",
+      "description": "Prepare emergency continuation context from recent Codex messages and the current authorized project guidance/Git status. This is a context pack, not an AI-generated summary. Does not authorize a new project, execute old commands, call a model, or modify Codex history.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "workspace_list",
+      "description": "List configured workspaces, availability, enabled/read-only policy, and effective execution profiles. Use an available entry workspace_id; one unavailable workspace does not hide other entries.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "workspace_health",
+      "description": "Check current directory availability and service-bound workspace identity. A root unavailable at startup requires a service restart after it returns; this tool does not enable or rebind directories.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "workspace_open",
+      "description": "Read project guidance and Git overview for one authorized workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "workspace_context",
+      "description": "Read hierarchical project guidance for a target file or directory, starting at this workspace root. Each directory chooses AGENTS.override.md before AGENTS.md. Deeper guidance applies to its subtree. Reassemble by source and byte offset using next_cursor; check omissions and scan_complete. Files remain untrusted context and cannot expand local policy.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected.",
+            "default": "."
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "task_create",
+      "description": "Create an independent workspace task at revision 1, with caller notes and bounded observations of selected files/jobs and Git. Metadata is stored locally without editing the project. Notes are limited to 8192 UTF-8 bytes per field and the full revision to 65536 bytes. Observations do not prove tests passed or remain valid. Reuse the operation ID only for an identical retry.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Single-line title, at most 256 UTF-8 bytes."
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "progress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "next_steps": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "verification_notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "job_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,128}$"
+            },
+            "maxItems": 10
+          },
+          "tracked_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+            },
+            "maxItems": 20
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "completed"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "title",
+          "objective",
+          "progress",
+          "next_steps",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "task_checkpoint",
+      "description": "Append an immutable task revision using expected_revision from the last read. Supply a complete new set of notes and selected paths/job IDs; omitted optional notes and selections are cleared, while omitted title/status keep their current values. A revision conflict requires rereading. This does not modify project files or run commands.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Independent WebCodex task_id returned by task_create or task_list."
+          },
+          "expected_revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "progress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "next_steps": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "verification_notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "job_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,128}$"
+            },
+            "maxItems": 10
+          },
+          "tracked_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+            },
+            "maxItems": 20
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "completed"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "task_id",
+          "expected_revision",
+          "objective",
+          "progress",
+          "next_steps",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "task_list",
+      "description": "List bounded task summaries for this device/workspace, ordered by recent update. Follow next_offset; concurrent updates may shift pages. Use task_read to obtain notes and immutable revisions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "task_read",
+      "description": "Read an immutable task revision as paginated JSON. Concatenate content by chunk.offset_bytes before parsing; next_cursor pins the revision even if a newer one is saved. The first page includes bounded current freshness observations; later pages return freshness=null. Unchanged observations never prove test validity. Check coverage and omitted details. Cursors expire on service restart.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Independent WebCodex task_id returned by task_create or task_list."
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "task_export",
+      "description": "Export a selected immutable task revision to WEBCODEX_HANDOFF.md with hash checking and a recorded backup. Read the existing file first; expected_sha256=null is create-only. Preserves saved observations as historical facts; does not rerun commands or change Codex history.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Independent WebCodex task_id returned by task_create or task_list."
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "task_id",
+          "expected_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "checkpoint_read",
+      "description": "Read the saved WEBCODEX_HANDOFF.md in this workspace. Missing files return exists=false and sha256=null. Known credentials are redacted before output limits; line numbers refer to redacted text. Use the raw-byte sha256 for a later checkpoint_save. Check truncated and next_start_line.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "start_line": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "end_line": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "checkpoint_save",
+      "description": "Create or update WEBCODEX_HANDOFF.md with caller-supplied task notes, current filtered Git status and real observations of selected WebCodex jobs. The file is backed up and hash-checked; read it first. No model runs, no Codex history changes, and no commands are executed. Caller notes are not verified test results. Pass a new operation ID for a fresh snapshot; reuse only for an identical retry.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "progress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "next_steps": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "verification_notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Local Codex session_id returned by codex_session_list."
+          },
+          "job_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,128}$"
+            },
+            "maxItems": 10
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "objective",
+          "progress",
+          "next_steps",
+          "expected_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_list",
+      "description": "List one directory with bounded pagination. Use fs_read for text inspection. Automatic PDF/Office attachment is not implemented. Manual native ChatGPT upload is a separate host feature. Only use fs_open_file for explicitly requested component diagnostics. fs_read_file is the explicit raw inline transfer route.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected.",
+            "default": "."
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_read_file",
+      "description": "Return one COMPLETE ORIGINAL FILE without text extraction, OCR, conversion or truncation. Use for explicit raw-file delivery or native PNG/JPEG/GIF/WebP images. For PDF, Office or other document analysis use ChatGPT native attachments; the local panel helps locate originals. The fs_open_file component is retained only for explicitly requested diagnostics. Returns metadata plus native MCP image content (PNG/JPEG/GIF/WebP with matching signatures) or an embedded binary resource containing the exact file bytes. Base64 is transport encoding, not a text document. Do not treat successful transfer as proof that ChatGPT attached or parsed the file: client support must be verified. content_processing:none only means the server did not convert the file. If only metadata or a file card is accessible, ask the user to attach the original through ChatGPT native attachments; do not claim the document was read or automatically substitute extraction/OCR. Use name/display_name for the human filename. Embedded URIs identify this snapshot; they are not public download URLs or resources/read endpoints. Oversized files fail as a whole; the limit is configured locally. Use fs_read/fs_read_chunk for optional text inspection and code edits.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_read",
+      "description": "Read a bounded line range and raw-byte SHA-256. Use the hash for conflict-safe edits. Use fs_read_chunk for FILE_TOO_LARGE or line_cut; do not repeat a cut line expecting the missing tail. Text only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          },
+          "start_line": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "end_line": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_read_chunk",
+      "description": "Read large text files or long lines with a signed next_cursor. Reassemble content by decoded UTF-8 byte offset. Raw sha256 identifies the whole file. Each page validates the bounded full source; edits, replacements and service restarts invalidate the cursor. Read limit does not increase the write limit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_read_many",
+      "description": "Read 1–16 related text files with a shared content-byte budget. Each result has its own success or error. Check truncated and omitted entries; file hashes always identify original bytes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+                },
+                "start_line": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "end_line": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "max_total_bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "files"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_batch_preview",
+      "description": "Preview a bounded group of file writes, strict patches, deletes and create-only moves. Read source hashes first. Every affected path may appear only once; a move counts as two paths. Returns the complete change list and a bounded diff with explicit omissions, plus plan_sha256. Does not persist a plan or change project files. Check all changes and diff_truncated before applying; missing diff content may require individual inspection.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "write"
+                    },
+                    "path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048,
+                      "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 1048576
+                    },
+                    "expected_sha256": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$",
+                          "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "content",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "patch"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "patch": {
+                      "type": "string",
+                      "maxLength": 2097152
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "patch",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "delete"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "move"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048,
+                      "description": "Unused destination path in the same workspace; its parent must exist."
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "to",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "changes"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_batch_apply",
+      "description": "Apply exactly the changes inspected with fs_batch_preview; submit its plan_sha256 as expected_plan_sha256. Revalidates all hashes and saves backups before writes. Files change sequentially; this is not an OS-atomic transaction. Always inspect data.status: applied means completed; rolled_back or partial means the batch failed, even when ok=true. On errors or lost responses use fs_batch_status with this operation key. Never blindly start a new operation after an uncertain result.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "write"
+                    },
+                    "path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048,
+                      "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 1048576
+                    },
+                    "expected_sha256": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$",
+                          "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "content",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "patch"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "patch": {
+                      "type": "string",
+                      "maxLength": 2097152
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "patch",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "delete"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "move"
+                    },
+                    "path": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/path"
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048,
+                      "description": "Unused destination path in the same workspace; its parent must exist."
+                    },
+                    "expected_sha256": {
+                      "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "to",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "expected_plan_sha256": {
+            "$ref": "#/properties/changes/items/anyOf/0/properties/expected_sha256/anyOf/0"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "changes",
+          "expected_plan_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_batch_status",
+      "description": "Inspect the durable batch journal by its original idempotency_key and compare current file hashes with the before/after versions. Recorded progress and current observations are separate facts; matching hashes do not prove authorship. Unknown or partial batches are never automatically resumed. This tool does not restore files; review change IDs and use existing restoration tools after checking current versions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "idempotency_key"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_search",
+      "description": "Search authorized project text with ripgrep. Returns bounded matches; skips protected paths and large dependency directories.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected.",
+            "default": "."
+          },
+          "regex": {
+            "type": "boolean",
+            "default": false
+          },
+          "case_sensitive": {
+            "type": "boolean",
+            "default": false
+          },
+          "max_results": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "workspace_id",
+          "query"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_write",
+      "description": "Save generated SVG diagrams, HTML, Markdown, XML or source code to the local workspace as text; command execution may remain disabled. Parent directories must exist (use fs_mkdir if needed). expected_sha256=null is create-only; existing files require their original hash. Backups and conflict checks are enforced. Read back to verify before reporting saved.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1048576
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path",
+          "content",
+          "expected_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_mkdir",
+      "description": "Create one directory within the authorized workspace. Parent must already exist. Reuse the operation ID only for an identical retry.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_apply_patch",
+      "description": "Apply a strict single-file unified diff after reading its hash. Patch input allows up to twice writeMaxBytes in UTF-8 bytes, consistently with batch patches; the resulting file remains limited to writeMaxBytes. dry_run previews without writing; still classified as write-capable.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+          },
+          "patch": {
+            "type": "string",
+            "maxLength": 2097152
+          },
+          "expected_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "default": false
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path",
+          "patch",
+          "expected_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "changes_list",
+      "description": "List recorded service edits for this workspace; these do not include arbitrary shell side effects.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "changes_preview",
+      "description": "Preview undoing one recorded edit without changing files. Returns a bounded diff from the current file to its saved previous version. Requires the current file to match the recorded after-version. Check truncated before deciding to restore.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "change_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "context_lines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "max_bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "change_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "changes_restore",
+      "description": "Undo one recorded file edit only when the current file matches expected_sha256. Does not undo shell, network or database side effects.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "change_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original raw-byte SHA-256 from a file read such as fs_read or fs_read_chunk."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "change_id",
+          "expected_sha256",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "git_status",
+      "description": "Inspect local repository changes using Git porcelain output; does not stage or commit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "git_diff",
+      "description": "Read a bounded Git diff. External diff, text conversions and submodule traversal are disabled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "staged": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_start",
+      "description": "Start a native executable using the workspace execution profile or global defaults shown by workspace_list/open. Fixed arguments are prepended to args. New receipts bind the selected program and environment; changed configuration conflicts with retrying the same operation key. Only works in trusted-host mode, with host-user privileges and possible file/network effects. stdin defaults to closed; opt into pipe to send later text/EOF with exec_write_stdin. This is a pipe, not a PTY or persistent shell. Returns a durable job ID; inspect output and exit status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "executable": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 8192
+            },
+            "maxItems": 128,
+            "default": []
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the workspace; absolute paths and protected directories are rejected.",
+            "default": "."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 86400000
+          },
+          "stdin": {
+            "type": "string",
+            "enum": [
+              "closed",
+              "pipe"
+            ],
+            "default": "closed"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "executable",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_write_stdin",
+      "description": "Send UTF-8 text and/or end=true (EOF) to a running job started with stdin=pipe by this service. Requires current write authorization, trusted-host mode, and the same execution profile/program/environment as the original job. Reuse an operation key only for an identical retry; after unknown delivery do not resend with a new key. Success only means bytes were written to the OS pipe, not processed by the program. Input text is not persisted/audited by this input tool, but the child may echo or store it. Per-call and cumulative byte limits apply.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "end": {
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "job_id",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_poll",
+      "description": "Read new stdout/stderr using the last next_cursor. Check final status and exit_code; an empty chunk does not mean the job completed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 65536,
+            "default": 16384
+          }
+        },
+        "required": [
+          "workspace_id",
+          "job_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_list",
+      "description": "List persisted jobs for an authorized workspace, including interrupted or unknown jobs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_wait",
+      "description": "Wait briefly for new persisted job output or terminal status, then return the same cursor-based output as exec_poll. wait_reason=timeout only ends this wait; it does not cancel the command. Use next_cursor for the next wait/poll. Inspect final status and exit_code before reporting a result.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 65536
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000
+          }
+        },
+        "required": [
+          "workspace_id",
+          "job_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_tail",
+      "description": "Read the bounded end of persisted job logs, optionally filtered to stdout or stderr, in chronological order. This may omit earlier or other-stream output. Storage truncation can mean the latest actual process output was not persisted. next_cursor is the global persisted end for future unfiltered exec_poll/exec_wait; tail does not establish success.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "stream": {
+            "type": "string",
+            "enum": [
+              "all",
+              "stdout",
+              "stderr"
+            ]
+          },
+          "max_bytes": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 65536
+          }
+        },
+        "required": [
+          "workspace_id",
+          "job_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "exec_cancel",
+      "description": "Stop a job owned by this service and its child processes. Partial side effects are possible.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "job_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "job_id",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "fs_open_file",
+      "title": "Experimental original-file component",
+      "description": "Open the original-file component for an authorized local file. Retained for explicitly requested component experiments. For normal PDF/Office reading use ChatGPT native attachments; the local WebCodex panel helps locate the original. Do not automatically route document requests to this experiment. Preserves the complete original bytes and filename; no local extraction, OCR or conversion. Requires workspace_id, relative path and intended expected_device_id. The initial response contains no file bytes: the component retrieves bounded chunks privately. By default the component automatically uploads once and sends the original file reference to continue the user request where the host supports it. Follow data.ui.mode: manual configuration retains upload/send buttons. Do not request extra user clicks during the automatic flow. The initial upload flag is only a tool-invocation snapshot; use later component status. Upload or a file-reference acknowledgment does not prove parsing. Never claim a summary from metadata. This host integration is experimental; existing inline limits still apply. If handoff_status is host_file_reference_not_declared, the host has not declared the required resourceLink modality: report the automatic route as blocked, not as a proven host rejection. Only where offered by the component, a separate manual one-shot compatibility test can observe actual acceptance or rejection; do not trigger repeated uploads or claim that an ACK proves file access. If the host rejects the file reference or contents remain inaccessible, report the actual host response; do not repeat uploads, send Base64 messages or substitute local extraction.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id from workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the selected authorized workspace."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Intended device_id from system_status; required for local file bytes."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "path",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "prototype": {
+                "type": "boolean",
+                "const": true
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "capabilities",
+                  "local-file"
+                ]
+              },
+              "max_upload_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Component upload policy only; does not raise local read limits or prove host acceptance."
+              },
+              "inline_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Configured local inline original-byte read limit."
+              },
+              "max_upload_bytes_scope": {
+                "type": "string",
+                "const": "component_upload_policy"
+              },
+              "snapshot_cache_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "effective_local_file_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Local component single-file maximum with no occupied snapshots: minimum of inline, upload policy and cache limits."
+              },
+              "effective_local_file_limit_scope": {
+                "type": "string",
+                "const": "per_file_with_empty_cache"
+              },
+              "host_upload_support": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "client_attachment_support": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "content_processing": {
+                "type": "string",
+                "const": "none"
+              },
+              "content_processing_scope": {
+                "type": "string",
+                "const": "server_only"
+              },
+              "model_access": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "upload_performed": {
+                "type": "boolean",
+                "const": false
+              },
+              "upload_state_scope": {
+                "type": "string",
+                "const": "tool_invocation_snapshot"
+              },
+              "delivery": {
+                "type": "string",
+                "const": "component-only-chunks"
+              },
+              "ui": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "automatic",
+                      "manual"
+                    ]
+                  },
+                  "compact": {
+                    "type": "boolean"
+                  },
+                  "close_after_send": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "compact",
+                  "close_after_send"
+                ],
+                "additionalProperties": false
+              },
+              "next_step": {
+                "type": "string"
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "workspace_uid": {
+                "type": "string"
+              },
+              "workspace_name": {
+                "type": "string"
+              },
+              "delivery_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "path": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "mime_type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "prototype",
+              "mode",
+              "max_upload_bytes",
+              "inline_max_bytes",
+              "max_upload_bytes_scope",
+              "snapshot_cache_max_bytes",
+              "effective_local_file_max_bytes",
+              "effective_local_file_limit_scope",
+              "host_upload_support",
+              "client_attachment_support",
+              "content_processing",
+              "content_processing_scope",
+              "model_access",
+              "upload_performed",
+              "upload_state_scope",
+              "delivery",
+              "ui",
+              "next_step"
+            ],
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://webcodex/file-feasibility-0.14.0-preview.2.html",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        },
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.14.0-preview.2.html",
+        "openai/widgetAccessible": true,
+        "openai/toolInvocation/invoking": "Preparing original file",
+        "openai/toolInvocation/invoked": "Original file ready in component"
+      }
+    },
+    {
+      "name": "file_widget_probe",
+      "title": "Check file host capabilities",
+      "description": "Diagnose experimental ChatGPT file-component support. With no arguments, inspect the visible host capability summary without selecting or uploading a file. The browser component distinguishes missing, empty and declared message/updateModelContext modalities and attempts to publish kind:webcodex_host_capabilities for future turns. These runtime fields are not present in the initial server result; do not infer lack of host capabilities from that absence or repeatedly call the probe. API availability does not prove model access. For normal local document reading use ChatGPT native attachments; this tool is only an explicit diagnostic. Legacy local-file mode accepts workspace_id, relative path and expected_device_id together. The opening response has no original bytes; component-only chunk calls use hidden metadata. Existing inline limits apply. No automatic upload, attachment, model invocation or format conversion. The user clicks upload and verifies current-conversation attachment separately.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id from workspace_list."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Path relative to the selected authorized workspace."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Intended device_id from system_status; required for local file bytes."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "prototype": {
+                "type": "boolean",
+                "const": true
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "capabilities",
+                  "local-file"
+                ]
+              },
+              "max_upload_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Component upload policy only; does not raise local read limits or prove host acceptance."
+              },
+              "inline_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Configured local inline original-byte read limit."
+              },
+              "max_upload_bytes_scope": {
+                "type": "string",
+                "const": "component_upload_policy"
+              },
+              "snapshot_cache_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "effective_local_file_max_bytes": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Local component single-file maximum with no occupied snapshots: minimum of inline, upload policy and cache limits."
+              },
+              "effective_local_file_limit_scope": {
+                "type": "string",
+                "const": "per_file_with_empty_cache"
+              },
+              "host_upload_support": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "client_attachment_support": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "content_processing": {
+                "type": "string",
+                "const": "none"
+              },
+              "content_processing_scope": {
+                "type": "string",
+                "const": "server_only"
+              },
+              "model_access": {
+                "type": "string",
+                "const": "unverified"
+              },
+              "upload_performed": {
+                "type": "boolean",
+                "const": false
+              },
+              "upload_state_scope": {
+                "type": "string",
+                "const": "tool_invocation_snapshot"
+              },
+              "delivery": {
+                "type": "string",
+                "const": "component-only-chunks"
+              },
+              "ui": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "automatic",
+                      "manual"
+                    ]
+                  },
+                  "compact": {
+                    "type": "boolean"
+                  },
+                  "close_after_send": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "compact",
+                  "close_after_send"
+                ],
+                "additionalProperties": false
+              },
+              "next_step": {
+                "type": "string"
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "workspace_uid": {
+                "type": "string"
+              },
+              "workspace_name": {
+                "type": "string"
+              },
+              "delivery_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "path": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "mime_type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "prototype",
+              "mode",
+              "max_upload_bytes",
+              "inline_max_bytes",
+              "max_upload_bytes_scope",
+              "snapshot_cache_max_bytes",
+              "effective_local_file_max_bytes",
+              "effective_local_file_limit_scope",
+              "host_upload_support",
+              "client_attachment_support",
+              "content_processing",
+              "content_processing_scope",
+              "model_access",
+              "upload_performed",
+              "upload_state_scope",
+              "delivery",
+              "ui",
+              "next_step"
+            ],
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://webcodex/file-feasibility-0.14.0-preview.2.html",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        },
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.14.0-preview.2.html",
+        "openai/widgetAccessible": true,
+        "openai/toolInvocation/invoking": "Preparing file upload check",
+        "openai/toolInvocation/invoked": "Check upload support in the component"
+      }
+    },
+    {
+      "name": "file_widget_read",
+      "title": "Receive original file chunk",
+      "description": "Component-only original-byte transport. Requires a short-lived capability ticket and intended device. Returns at most the configured chunk size in hidden metadata; never request this tool from the model.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "ticket_id",
+          "expected_device_id",
+          "offset"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "visibility": [
+            "app"
+          ]
+        },
+        "openai/visibility": "private",
+        "openai/widgetAccessible": true
+      }
+    },
+    {
+      "name": "file_widget_release",
+      "title": "Release original file snapshot",
+      "description": "Component-only cleanup for an original-file snapshot. Releases its memory without modifying the source file.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "ticket_id",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "visibility": [
+            "app"
+          ]
+        },
+        "openai/visibility": "private",
+        "openai/widgetAccessible": true
+      }
+    }
+  ]
+}

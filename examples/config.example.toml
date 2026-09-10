@@ -1,0 +1,164 @@
+# Template: run init to generate fresh identities for each device.
+# Edit paths and connection credentials locally. Do not commit your live config.
+# All relative paths are based on this configuration directory.
+version = 2
+stateDir = "${configDir}/state"
+rgPath = "auto"
+toolsDir = "${configDir}/tools"
+nodePath = "auto"
+gitPath = "auto"
+
+[[workspaces]]
+id = "default"
+uid = ""
+name = "workspace"
+root = "${userHome}/Projects/example"
+readOnly = false
+# v0.10 defaults: enabled=true, onUnavailable="error".
+enabled = true
+onUnavailable = "error"
+# Optional: choose the profile defined below. Without this field, global aliases/env apply.
+# executionProfile = "node-tests"
+# For an existing linked worktree, use workspace add/rebind --worktree locally.
+# The CLI records verified worktree.gitDir/commonDir; do not copy another device's metadata paths.
+
+# v0.9: append a root-only workspace; its ID/UID/name are generated automatically.
+# Keep the original ID/UID of existing workspaces when adding another one.
+# [[workspaces]]
+# root = "${userHome}/Documents/papers"
+# readOnly = true
+# onUnavailable = "skip"
+# enabled = false
+# JSON may instead mix existing objects and path strings in the workspaces array.
+# skip tolerates missing/inaccessible roots; it does not authorize blocked paths.
+# A root skipped at startup needs a restart after it returns. A different physical
+# directory at the same path needs local rebind --new-identity, not automatic adoption.
+# CLI: workspace health / workspace disable --id ID / workspace enable --id ID.
+# Disabled entries do not revoke access granted by a separate enabled parent workspace.
+
+[execution]
+mode = "disabled"
+maxConcurrent = 2
+maxTimeoutMs = 600000
+maxOutputBytes = 5242880
+defaultTimeoutMs = 60000
+defaultWaitMs = 1000
+maxWaitMs = 20000
+# stdin is explicitly opened per job. These bound each write and total input per job.
+stdinMaxBytes = 65536
+stdinMaxTotalBytes = 1048576
+stdinWriteTimeoutMs = 5000
+
+[localPanel]
+# Optional local status page with manual file handoff; binds only 127.0.0.1.
+port = 8767
+
+[execution.allowedExecutables.node]
+command = "${nodePath}"
+args = []
+
+[execution.env]
+# Optional non-sensitive development settings. Values are never inherited from arbitrary host variables.
+# NODE_ENV = "test"
+# CI = "true"
+# PYTHONUTF8 = "1"
+# PATH, NODE_OPTIONS, PYTHONPATH, proxies and credential variables are rejected.
+
+# Optional profile, selected only by workspace.executionProfile = "node-tests".
+# Its aliases/env fully replace global aliases/env; mode, readOnly and limits still apply.
+# An omitted profile env means no configured overrides, not fallback to global env.
+[execution.profiles.node-tests.allowedExecutables.node]
+command = "${nodePath}"
+args = []
+
+[execution.profiles.node-tests.env]
+NODE_ENV = "test"
+CI = "true"
+
+# Changing a selected profile/program/environment conflicts with retries of new jobs.
+# Inspect the old job before deciding whether a new operation ID should start another job.
+# Unavailable workspace roots also restrict existing job polling, cancellation and stdin.
+
+[fileWidget]
+# Experimental component only: explicitly invoked fs_open_file attempts an upload and file reference.
+# Automatic original-file attachment is deferred. Manual native ChatGPT upload is a separate host feature.
+# Use "manual" to retain upload/send buttons. file_widget_probe is always manual.
+mode = "automatic"
+compact = true
+# Request closing after reference delivery when supported; the host controls actual UI.
+closeAfterSend = true
+
+[limits]
+readMaxBytes = 65536
+# fs_read_chunk source size cap; response text remains bounded by readMaxBytes.
+fileReadMaxBytes = 16777216
+# fs_read_file: complete original bytes, no extraction or truncation. Default 4 MiB, max 7 MiB.
+# Independent of text read/write budgets; Base64 must fit the stdio message frame.
+fileTransferMaxBytes = 4194304
+# 0.12.0-preview.1 widget selection/reconstructed upload cap: default 100 MiB, max 512 MiB.
+# Does not increase MCP backend fileTransferMaxBytes (4 MiB default / 7 MiB max).
+# Original bytes and upload receipts do not prove ChatGPT can read document contents.
+# Widget-to-model original-PDF delivery has not passed body-reading acceptance.
+# Native ChatGPT attachments follow a separate path, outside these MCP byte limits.
+fileWidgetUploadMaxBytes = 104857600
+# fs_open_file first response contains metadata/ticket only, not file bytes.
+# The component reads exact raw chunks with app-only tools; no text extraction/conversion.
+# Existing backend default 4 MiB / max 7 MiB remains. Host limit causes are not proven.
+fileWidgetTicketTtlMs = 300000
+# Cache budget counts raw bytes, before Base64; default 32 MiB, max 256 MiB.
+fileWidgetCacheMaxBytes = 33554432
+# Raw bytes per component chunk; default 64 KiB, range 4-256 KiB.
+fileWidgetChunkMaxBytes = 65536
+writeMaxBytes = 1048576
+searchMaxResults = 100
+listMaxEntries = 200
+
+[http]
+port = 8765
+bearerToken = ""
+
+[projectContext]
+# Root has depth 0. Content is redacted in full before response pagination.
+maxDepth = 32
+maxFileBytes = 65536
+maxTotalBytes = 262144
+
+[fileBatches]
+# Distinct affected paths; a move counts both its source and destination.
+maxFiles = 20
+# Sum of before and after bytes across one batch; each file also obeys limits.writeMaxBytes.
+maxTotalBytes = 4194304
+
+[tasks]
+maxTasksPerWorkspace = 100
+maxRevisionsPerTask = 100
+maxTrackedFiles = 20
+# Total raw file bytes hashed for one saved or current observation.
+maxSnapshotBytes = 16777216
+
+[codexSessions]
+enabled = false
+home = "${userHome}/.codex"
+maxWindowsPerRequest = 4
+maxRecordBytes = 1048576
+
+[device]
+id = ""
+name = "My device"
+
+[tunnel]
+enabled = false
+id = ""
+apiKey = ""
+proxyUrl = ""
+clientPath = "auto"
+clientVersion = "auto"
+
+[server]
+transport = "stdio"
+
+[diagnostics]
+# Fixed protocol metadata only, no tool arguments or file contents. Disabling keeps old records.
+enabled = true
+# Bounded event count: 20..10000. Other audit logs and backups have separate retention.
+maxEvents = 1000

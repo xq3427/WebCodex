@@ -1,0 +1,100 @@
+{
+  "version": 2,
+  "stateDir": "${configDir}/state",
+  "workspaces": [
+    {
+      "id": "default",
+      "uid": "",
+      "name": "workspace",
+      "root": "${userHome}/Projects/example",
+      "readOnly": false
+    }
+  ],
+  "execution": {
+    "mode": "disabled",
+    "allowedExecutables": {
+      "node": {
+        "command": "${nodePath}",
+        "args": []
+      }
+    },
+    "maxConcurrent": 2,
+    "maxTimeoutMs": 600000,
+    "maxOutputBytes": 5242880,
+    "defaultTimeoutMs": 60000,
+    "defaultWaitMs": 1000,
+    "maxWaitMs": 20000,
+    "stdinMaxBytes": 65536,
+    "stdinMaxTotalBytes": 1048576,
+    "stdinWriteTimeoutMs": 5000,
+    "env": {}
+  },
+  "fileWidget": {
+    "mode": "automatic",
+    "compact": true,
+    "closeAfterSend": true
+  },
+  "limits": {
+    "readMaxBytes": 65536,
+    "fileReadMaxBytes": 16777216,
+    "fileTransferMaxBytes": 4194304,
+    "fileWidgetUploadMaxBytes": 104857600,
+    "fileWidgetTicketTtlMs": 300000,
+    "fileWidgetCacheMaxBytes": 33554432,
+    "fileWidgetChunkMaxBytes": 65536,
+    "writeMaxBytes": 1048576,
+    "searchMaxResults": 100,
+    "listMaxEntries": 200
+  },
+  "rgPath": "auto",
+  "fileBatches": {
+    "maxFiles": 20,
+    "maxTotalBytes": 4194304
+  },
+  "projectContext": {
+    "maxDepth": 32,
+    "maxFileBytes": 65536,
+    "maxTotalBytes": 262144
+  },
+  "tasks": {
+    "maxTasksPerWorkspace": 100,
+    "maxRevisionsPerTask": 100,
+    "maxTrackedFiles": 20,
+    "maxSnapshotBytes": 16777216
+  },
+  "http": {
+    "port": 8765,
+    "bearerToken": ""
+  },
+  "codexSessions": {
+    "enabled": false,
+    "home": "${userHome}/.codex",
+    "maxWindowsPerRequest": 4,
+    "maxRecordBytes": 1048576
+  },
+  "device": {
+    "id": "",
+    "name": "My device"
+  },
+  "toolsDir": "${configDir}/tools",
+  "nodePath": "auto",
+  "gitPath": "auto",
+  "tunnel": {
+    "enabled": false,
+    "id": "",
+    "apiKey": "",
+    "proxyUrl": "",
+    "clientPath": "auto",
+    "clientVersion": "auto"
+  },
+  "server": {
+    "transport": "stdio"
+  },
+  "diagnostics": {
+    "enabled": true,
+    "maxEvents": 1000
+  },
+  "localPanel": {
+    "port": 8767
+  }
+}

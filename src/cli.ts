@@ -1,0 +1,229 @@
+#!/usr/bin/env node
+import { parseArgs } from 'node:util';
+import { mkdir, writeFile, readFile, access, realpath } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { defaultUnifiedConfig, discoverConfigPath, loadConfig, validateConfig, resolveConfigSelectionPath } from './config.js';
+import { App } from './app.js';
+import { createMcpServer } from './server.js';
+import { startHttp } from './http.js';
+import { errorResult, AppError } from './errors.js';
+import { addExecutable, addWorkspace, codexStatus, disableCodexSessions, enableCodexSessions, removeExecutable, removeWorkspace, setExecutionMode, showConfig } from './config-admin.js';
+import { VERSION } from './version.js';
+import { renameDevice, rebindWorkspace } from './config-admin.js';
+import { setWorkspaceEnabled, workspaceHealthReport } from './config-admin.js';
+import { workspaceHealth } from './workspace-health.js';
+import { migrateConfiguration, writePrivateConfig } from './config-migration.js';
+import { runTunnel, readTunnelStatus } from './tunnel.js';
+import { configureExecutionPreset, inspectExecution } from './execution-admin.js';
+import { createTunnelProgressReporter } from './tunnel-progress.js';
+import { readMcpDiagnostics } from './mcp-diagnostics.js';
+import { startLocalPanel } from './local-panel.js';
+import { disableActionsProbe } from './config-admin.js';
+
+const help=`WebCodex MCP ${VERSION} (Node >=22.16)
+  init   --workspace PATH [--config PATH]
+  doctor [--config PATH]
+  diagnostics show [--config PATH]
+  serve  [--config PATH] [--transport stdio|http]
+  config show [--config PATH]
+  config validate [--config PATH]
+  config migrate --output PATH [--legacy-auth PATH] [--legacy-connect PATH] [--apply] [--config PATH]
+  config export --output PATH [--config PATH]
+  device show [--config PATH]
+  device rename --name NAME [--config PATH]
+  workspace health [--config PATH]
+  workspace disable --id ID [--config PATH]
+  workspace enable --id ID [--config PATH]
+  connect [--doctor-only] [--config PATH]
+  tunnel status [--config PATH]
+  panel [--config PATH]
+  workspace rebind --id ID --root PATH [--name NAME] [--read-only] [--worktree] [--new-identity] [--config PATH]
+  workspace list [--config PATH]
+  workspace add --id ID --root ABSOLUTE_PATH [--name NAME] [--read-only] [--worktree] [--config PATH]
+  workspace remove --id ID [--config PATH]
+  execution set-mode disabled|trusted-host [--config PATH]
+  execution add --alias NAME --executable ABSOLUTE_PATH [--prefix-arg VALUE ...] [--config PATH]
+  execution remove --alias NAME [--config PATH]
+  execution inspect [--config PATH]
+  execution preset --preset node|npm|python|venv|conda [--alias NAME] [--command PATH] [--entry PATH] [--prefix PATH] [--config PATH]
+  codex status [--config PATH]
+  codex enable [--home ABSOLUTE_PATH] [--config PATH]
+  codex disable [--config PATH]
+
+New default: .webcodex/config.toml; JSON is also supported.
+Select one file: --config > WEBCODEX_CONFIG > project > user. No merging.
+Ambiguous TOML/JSON defaults are rejected. Secrets have no environment fallback.
+config export generates a fresh template without local settings or credentials.
+workspace rebind generates a new workspace UID when the root changes and preserves old records.
+--new-identity also assigns a fresh UID to a replacement directory at the same pathname.
+--worktree records verified Git metadata for an explicitly authorized linked worktree.
+execution preset registers a native command without enabling execution.
+init never overwrites existing configuration; command execution starts disabled.
+Config edits require a manual service restart; workspace remove never deletes files.
+codex enable grants dedicated read-only tools access to local Codex session history.
+Without --home, it preserves a configured home, then uses CODEX_HOME or ~/.codex.
+trusted-host executes with the local owner's permissions; it is not an OS sandbox.
+Use --prefix-arg=--flag for a fixed argument that begins with a hyphen.
+stdio is recommended for OpenAI Secure MCP Tunnel.
+v2 transport and HTTP bearer token are read from the selected configuration.
+http binds only 127.0.0.1.
+This local token is not a public ChatGPT OAuth implementation.
+panel starts a local-only status and original-file handoff page on 127.0.0.1.
+Its short-lived launch URL is printed once; keep it on this device.
+Automatic PDF/Office attachment is deferred. The optional panel offers manual handoff only.
+`;
+async function main() {
+  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{config:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'}}});
+  const options = tokens.filter(token => token.kind === 'option').map(token => token.name);
+  for (const option of options) if (option !== 'prefix-arg' && options.filter(name => name === option).length > 1) throw new AppError('CLI_ERROR','Option --'+option+' may only be supplied once.');
+  const command=positionals[0];
+  if(values.help || !command){process.stdout.write(help);return;}
+  const action = positionals[1];
+  const key = ['workspace', 'execution', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
+  const commandOptions: Record<string, { count:number; options:string[] }> = {
+    init:{count:1,options:['workspace']},doctor:{count:1,options:[]},serve:{count:1,options:['transport']},
+    'config show':{count:2,options:[]},'workspace list':{count:2,options:[]},
+    'diagnostics show':{count:2,options:[]},
+    connect:{count:1,options:['doctor-only']},'tunnel status':{count:2,options:[]},
+    panel:{count:1,options:[]},'actions-probe disable':{count:2,options:[]},
+    'config validate':{count:2,options:[]},'config export':{count:2,options:['output']},
+    'config migrate':{count:2,options:['output','legacy-auth','legacy-connect','apply']},
+    'device show':{count:2,options:[]},'device rename':{count:2,options:['name']},
+    'workspace rebind':{count:2,options:['id','root','name','read-only','worktree','new-identity']},
+    'workspace health':{count:2,options:[]},'workspace enable':{count:2,options:['id']},'workspace disable':{count:2,options:['id']},
+    'workspace add':{count:2,options:['id','root','name','read-only','worktree']},'workspace remove':{count:2,options:['id']},
+    'execution set-mode':{count:3,options:[]},'execution add':{count:2,options:['alias','executable','prefix-arg']},'execution remove':{count:2,options:['alias']},
+    'execution inspect':{count:2,options:[]},'execution preset':{count:2,options:['preset','alias','command','entry','prefix']},
+    'codex status':{count:2,options:[]},'codex enable':{count:2,options:['home']},'codex disable':{count:2,options:[]},
+  };
+  const spec = commandOptions[key];
+  if (!spec) throw new AppError('CLI_ERROR','Unknown command. Use --help.');
+  if(positionals.length!==spec.count)throw new AppError('CLI_ERROR','Unexpected or missing positional arguments. Use --help.');
+  for (const option of options) if (!['config','help',...spec.options].includes(option)) throw new AppError('CLI_ERROR','Option --'+option+' is not supported by '+key+'.');
+  const required = (name:'id'|'root'|'alias'|'executable'|'output'|'name') => {const value=values[name];if(!value)throw new AppError('CLI_ERROR',key+' requires --'+name+'.');return value;};
+  const print = (result:unknown) => process.stdout.write(JSON.stringify(result,null,2)+'\n');
+  const configPath=command==='init'?resolveConfigSelectionPath(values.config??process.env.WEBCODEX_CONFIG??'.webcodex/config.toml'):await discoverConfigPath(values.config);
+  if(key==='config migrate'){print(await migrateConfiguration({source:configPath,output:resolveConfigSelectionPath(required('output')),legacyAuth:values['legacy-auth'],legacyConnect:values['legacy-connect'],apply:values.apply}));return;}
+  if(key==='device rename'){print(await renameDevice(configPath,required('name')));return;}
+  if(key==='workspace rebind'){print(await rebindWorkspace(configPath,{id:required('id'),root:required('root'),name:values.name,readOnly:values['read-only'],worktree:values.worktree,newIdentity:values['new-identity']}));return;}
+  if(key==='workspace health'){print(await workspaceHealthReport(configPath));return;}
+  if(key==='workspace enable'||key==='workspace disable'){print(await setWorkspaceEnabled(configPath,required('id'),key==='workspace enable'));return;}
+  if(key==='config show'){print(await showConfig(configPath));return;}
+  if(key==='workspace list'){const shown=await showConfig(configPath);print({ok:true,config:shown.config,workspaces:shown.workspaces});return;}
+  if(key==='workspace add'){print(await addWorkspace(configPath,{id:required('id'),root:required('root'),name:values.name,readOnly:values['read-only'],worktree:values.worktree}));return;}
+  if(key==='workspace remove'){print(await removeWorkspace(configPath,required('id')));return;}
+  if(key==='execution set-mode'){print(await setExecutionMode(configPath,positionals[2]));return;}
+  if(key==='execution add'){print(await addExecutable(configPath,{alias:required('alias'),command:required('executable'),args:values['prefix-arg']??[]}));return;}
+  if(key==='execution remove'){print(await removeExecutable(configPath,required('alias')));return;}
+  if(key==='execution preset'){
+    const preset=values.preset;
+    if(preset!=='node'&&preset!=='npm'&&preset!=='python'&&preset!=='venv'&&preset!=='conda')throw new AppError('CLI_ERROR','execution preset requires --preset node|npm|python|venv|conda.');
+    print(await configureExecutionPreset(configPath,{preset,alias:values.alias,command:values.command,entry:values.entry,prefix:values.prefix}));return;
+  }
+  if(key==='codex status'){print(await codexStatus(configPath));return;}
+  if(key==='codex enable'){print(await enableCodexSessions(configPath,values.home));return;}
+  if(key==='codex disable'){print(await disableCodexSessions(configPath));return;}
+  if(command==='init'){
+    if(!values.workspace)throw new AppError('CLI_ERROR','init requires --workspace PATH.');
+    const root=await realpath(path.resolve(values.workspace));
+    if(!values.config&&!process.env.WEBCODEX_CONFIG){try{await access(path.resolve('.webcodex/config.json'));throw new AppError('CONFIG_EXISTS','An existing JSON configuration was found. Migrate it explicitly.');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
+    const raw=defaultUnifiedConfig(root,configPath);
+    raw.http.bearerToken=randomBytes(32).toString('hex');
+    await validateConfig(raw,configPath);
+    await writePrivateConfig(configPath,raw);
+    process.stdout.write(JSON.stringify({ok:true,config:configPath,workspace:root,execution_mode:'disabled'},null,2)+'\n');return;
+  }
+  if(key==='diagnostics show'){const config=await loadConfig(configPath,{workspaceDiagnostics:true});print({ok:true,...readMcpDiagnostics(config)});return;}
+  if(key==='actions-probe disable'){print(await disableActionsProbe(configPath));return;}
+  if(command==='panel'){
+    const config=await loadConfig(configPath,{workspaceDiagnostics:true});
+    const listener=await startLocalPanel(config);
+    installLocalPanelShutdown(listener.close);
+    print({ok:true,url:listener.url,local_only:true,notice:'Open this short-lived URL on this device. Keep the process running; Ctrl+C closes the local panel.'});
+    return;
+  }
+  const config=await loadConfig(configPath);
+  if(key==='execution inspect'){print(await inspectExecution(config));return;}
+  if(key==='config validate'){print({ok:true,config:configPath,version:config.version,device_id:config.device?.id??null});return;}
+  if(key==='device show'){print({ok:true,device:config.device??null,platform:process.platform,legacy:config.version===1});return;}
+  if(key==='config export'){
+    const output=resolveConfigSelectionPath(required('output'));
+    const raw=defaultUnifiedConfig('./workspace',output,{deviceName:'My device'});
+    raw.device.id='';raw.workspaces[0].uid='';
+    raw.workspaces[0].root='./workspace';raw.nodePath='auto';raw.rgPath='auto';raw.gitPath='auto';raw.codexSessions.home='${userHome}/.codex';raw.http.bearerToken='';
+    await writePrivateConfig(output,raw);print({ok:true,output,template:true,notice:'Identities and credentials are blank. Run init on each device to generate its local identities, then transfer desired non-secret settings.'});return;
+  }
+  if(key==='tunnel status'){const result=await readTunnelStatus(config);print(result);process.exitCode=result.exit_code;return;}
+  if(command==='connect'){
+    const progress=createTunnelProgressReporter(line=>process.stderr.write(line));
+    try {
+      const result=await runTunnel(config,{doctorOnly:values['doctor-only'],onProgress:event=>event.type==='phase'?progress.phase(event.phase):progress.observe(event.status)});
+      print({ok:result.exit_code===0,...result});process.exitCode=result.exit_code;return;
+    } catch(error){progress.failed(error instanceof AppError?error.code:undefined);throw error;}
+  }
+  if(command==='doctor'){
+    const [git,rgProbe]=await Promise.all([probe(config.gitPath??'git',['--version']),probe(config.rgPath,['--version'])]);
+    const rg={...rgProbe,configured_path:config.rgPath,...(!rgProbe.available?{remediation:'Install ripgrep or set rgPath in the configuration to the absolute path of an installed rg.exe (rg on other platforms). The tunnel process must be able to run that executable.'}:{})};
+    const workspaces=await Promise.all(config.workspaces.map(async w=>{const health=workspaceHealth(config,w);let writable=false;if(health.available&&!w.readOnly)try{await access(w.root,constants.W_OK);writable=true;}catch{}return{workspace_id:w.id,exists:health.available?true:health.status==='missing'?false:null,enabled:w.enabled!==false,read_only:w.readOnly,writable,...health};}));
+    const result={ok:git.available && rg.available,version:VERSION,device:config.device,node:process.version,mcp_sdk:'1.30.0',git,rg,workspaces,execution_mode:config.execution.mode,executable_aliases:Object.keys(config.execution.allowedExecutables),connection:'Local checks only; ChatGPT negotiation must be verified separately.',config:configPath};
+    process.stdout.write(JSON.stringify(result,null,2)+'\n');if(!result.ok)process.exitCode=1;return;
+  }
+  const transport=config.version===2?(config.server?.transport??'stdio'):(values.transport??'stdio');
+  if(config.version===2&&values.transport&&values.transport!==transport)throw new AppError('CONFIG_ERROR','Set server.transport in the selected configuration; conflicting overrides are rejected.');
+  if(transport!=='stdio' && transport!=='http')throw new AppError('CLI_ERROR','transport must be stdio or http.');
+  const app=new App(config);
+  let cleanupTransport=async()=>{};
+  let stopping=false;
+  const shutdown=async()=>{if(stopping)return;stopping=true;try{await cleanupTransport();}finally{await app.close();}};
+  process.once('SIGINT',()=>{void shutdown().then(()=>{process.exitCode=0;});});
+  process.once('SIGTERM',()=>{void shutdown().then(()=>{process.exitCode=0;});});
+  try { if(transport==='stdio'){
+    const server=createMcpServer(app);
+    await server.connect(new StdioServerTransport());
+    cleanupTransport=()=>server.close();
+    server.server.onclose=()=>{void shutdown();};
+    process.stdin.once('end',()=>{void shutdown();});
+    process.stderr.write('WebCodex MCP ready on stdio; execution='+config.execution.mode+'\n');
+  }else{
+    const tokenPath=path.join(config.stateDir,'http-token');
+    let token=config.http.bearerToken;
+    if(config.version===1){try{token=(await readFile(tokenPath,'utf8')).trim();}
+    catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;token=randomBytes(32).toString('hex');await writeFile(tokenPath,token+'\n',{flag:'wx',mode:0o600});}}
+    if(!token)throw new AppError('CONFIG_ERROR','Configure http.bearerToken before enabling HTTP.');
+    const listener=await startHttp(app,{token});
+    cleanupTransport=listener.close;
+    process.stderr.write('WebCodex MCP ready at '+listener.url+'; bearer token loaded locally.\n');
+  }
+  } catch(error) { await shutdown(); throw error; }
+}
+function installLocalPanelShutdown(close:()=>Promise<void>) {
+  let stopping=false;
+  const shutdown=async()=>{
+    if(stopping)return;
+    stopping=true;
+    try {await close();process.exitCode??=0;}
+    catch {process.stderr.write(JSON.stringify(errorResult(new AppError('LOCAL_PANEL_SHUTDOWN_FAILED','The local panel did not close cleanly.')))+'\n');process.exitCode=1;}
+  };
+  const onSignal=()=>{void shutdown();};
+  process.on('SIGINT',onSignal);
+  process.on('SIGTERM',onSignal);
+}
+async function probe(command:string,args:string[]) {
+  return await new Promise<{available:boolean;version?:string}>(resolve=>{
+    let done=false;let output='';
+    const proc=spawn(command,args,{shell:false,windowsHide:true,stdio:['ignore','pipe','ignore']});
+    const finish=(available:boolean)=>{if(done)return;done=true;clearTimeout(timer);resolve({available,...(available?{version:output.split(/\r?\n/)[0].slice(0,150)}:{})});};
+    const timer=setTimeout(()=>{proc.kill();finish(false);},5000);
+    proc.stdout.on('data',(b:Buffer)=>{if(output.length<2048)output+=b.toString('utf8');});
+    proc.on('error',()=>finish(false));proc.on('close',code=>finish(code===0));
+  });
+}
+main().catch(error=>{
+  const failure = typeof error?.code === 'string' && error.code.startsWith('ERR_PARSE_ARGS_')
+    ? new AppError('CLI_ERROR', 'Invalid command-line arguments. Use --help.') : error;
+  process.stderr.write(JSON.stringify(errorResult(failure))+'\n');process.exitCode=1;
+});
