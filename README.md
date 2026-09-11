@@ -54,7 +54,7 @@ Windows 可使用 `D:/WebCodex/config.toml`。[TOML 模板](examples/config.exam
 推荐通过 **OpenAI 官方 Secure MCP Tunnel** 连接本机 stdio 服务。此模式无需自建公网服务器、域名、Cloudflare、浏览器扩展或 Actions 服务；账户仍须具备相应 Platform 隧道和 ChatGPT 连接权限。
 
 1. 在 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 创建或选择隧道，并准备具备运行权限的 API key。
-2. 安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。Windows 可运行 `./scripts/install-tunnel.ps1`；Linux/macOS 下载匹配平台的程序并配置路径和 SHA-256。
+2. 安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。Windows 使用默认配置时运行 `./scripts/install-tunnel.ps1`；自定义配置需指定同一文件，例如 `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`。Linux/macOS 下载匹配平台的程序并配置路径和 SHA-256。
 3. 在所选配置的 `tunnel` 中填写 `enabled`、`id` 和 `apiKey`，保留 `server.transport = "stdio"`。
 4. 检查并启动连接：
 
@@ -67,7 +67,7 @@ node dist/src/cli.js connect
 
 使用 v2 配置时，`connect` 同时启动连接与本地控制中心，并打印页面链接。`stdio` 使用官方隧道，`http` 启动回环 HTTP 服务；本机 HTTP 或页面可访问不代表 ChatGPT 已连接。面板端口冲突时会临时选择空闲回环端口，不修改配置。
 
-`connect --no-panel` 保留无页面连接方式；`connect --doctor-only` 只检查。连接应持续运行，不要启动另一份共用相同 state 的服务。可另开终端运行 `node dist/src/cli.js tunnel status` 查看状态。
+对于 stdio 隧道，`connect --no-panel` 启动无页面连接，`connect --doctor-only` 只检查隧道配置；可另开终端运行 `node dist/src/cli.js tunnel status` 查看状态。对于 HTTP 配置，无页面服务使用 `node dist/src/cli.js serve`，本机依赖检查使用 `node dist/src/cli.js doctor`。自定义配置均需附加相同的 `--config`。服务应持续运行，不要启动另一份共用相同 state 的服务。
 
 连接后可发送：
 

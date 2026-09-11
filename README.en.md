@@ -54,7 +54,7 @@ Configuration changes require restarting the corresponding service. The page man
 Use the **official OpenAI Secure MCP Tunnel** for a local stdio service. This path needs no self-hosted public server, domain, Cloudflare, browser extension or Actions endpoint. Your account still needs the appropriate Platform tunnel and ChatGPT connection access.
 
 1. Create or select a tunnel in [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels), and prepare an API key with permission to run it.
-2. Install the official [tunnel-client](https://github.com/openai/tunnel-client/releases). Windows users can run `./scripts/install-tunnel.ps1`; Linux/macOS users configure a matching binary path and SHA-256.
+2. Install the official [tunnel-client](https://github.com/openai/tunnel-client/releases). On Windows, run `./scripts/install-tunnel.ps1` for the default configuration; for a custom location, pass that same file, for example `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`. Linux/macOS users configure a matching binary path and SHA-256.
 3. Set `tunnel.enabled`, `tunnel.id` and `tunnel.apiKey` in the selected configuration. Keep `server.transport = "stdio"`.
 4. Check and start the connection:
 
@@ -67,7 +67,7 @@ node dist/src/cli.js connect
 
 With a v2 configuration, `connect` starts the connection and local control center, then prints the page URL. `stdio` uses the official tunnel; `http` starts a loopback HTTP service. A reachable local HTTP endpoint or page does not establish a ChatGPT connection. If the panel port conflicts, a free loopback port is selected without changing configuration.
 
-Use `connect --no-panel` for a connection without the page; `connect --doctor-only` only checks setup. Keep the connection running and do not start another service sharing its state directory. Inspect status from another terminal with `node dist/src/cli.js tunnel status`.
+For stdio tunnels, `connect --no-panel` starts a connection without the page and `connect --doctor-only` only checks tunnel setup; inspect status from another terminal with `node dist/src/cli.js tunnel status`. For HTTP configurations, use `node dist/src/cli.js serve` without a panel and `node dist/src/cli.js doctor` for local dependency checks. Append the same `--config` when using a custom location. Keep the service running and do not start another service sharing its state directory.
 
 After connecting, ask:
 
