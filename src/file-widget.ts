@@ -19,6 +19,17 @@ export const LEGACY_FILE_WIDGET_URIS = [
   'ui://webcodex/file-feasibility-0.13.0-preview.1.html',
   'ui://webcodex/file-feasibility-0.13.0-preview.2.html',
   'ui://webcodex/file-feasibility-0.14.0-preview.1.html',
+  'ui://webcodex/file-feasibility-0.14.0-preview.2.html',
+  'ui://webcodex/file-feasibility-0.14.0-preview.3.html',
+  'ui://webcodex/file-feasibility-0.14.0-preview.4.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.1.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.2.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.3.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.4.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.5.html',
+  'ui://webcodex/file-feasibility-0.15.0-preview.6.html', 'ui://webcodex/file-feasibility-0.15.0-preview.7.html',
+  'ui://webcodex/file-feasibility-0.16.0-preview.1.html', 'ui://webcodex/file-feasibility-0.16.0-preview.2.html', 'ui://webcodex/file-feasibility-0.16.0-preview.3.html',
+  'ui://webcodex/file-feasibility-0.16.0-preview.4.html', 'ui://webcodex/file-feasibility-0.16.0-preview.5.html', 'ui://webcodex/file-feasibility-0.16.0-preview.6.html',
 ] as const;
 export const FILE_WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
@@ -475,6 +486,16 @@ export function renderFileWidget(): string {
   async function shaHex(bytes) {
     return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (value) => value.toString(16).padStart(2, '0')).join('');
   }
+  function comparableNextOffset(data) {
+    // JSON hosts may omit null fields. Only an exact terminal range makes
+    // an absent next offset equivalent to null; partial ranges stay strict.
+    if (data?.eof === true && Number.isSafeInteger(data.offset) && data.offset >= 0
+      && Number.isSafeInteger(data.size_bytes) && data.size_bytes >= 0
+      && Number.isSafeInteger(data.total_bytes) && data.total_bytes >= 0
+      && data.offset + data.size_bytes === data.total_bytes
+      && (data.next_offset === null || data.next_offset === undefined)) return null;
+    return data?.next_offset;
+  }
   function privateChunkEnvelope(result, args) {
     const candidates = resultCandidates(result);
     if (!candidates) throw new Error('文件分块响应包装超过检查范围，已停止读取。');
@@ -489,7 +510,7 @@ export function renderFileWidget(): string {
     const fields = (value) => {
       const envelope = value?.structuredContent, data = envelope?.data;
       return [envelope?.ok, envelope?.source?.device_id, envelope?.source?.device_name, envelope?.source?.instance_id,
-        data?.ticket_id, data?.offset, data?.size_bytes, data?.total_bytes, data?.next_offset, data?.eof, data?.sha256, data?.chunk_sha256];
+        data?.ticket_id, data?.offset, data?.size_bytes, data?.total_bytes, comparableNextOffset(data), data?.eof, data?.sha256, data?.chunk_sha256];
     };
     const identity = fields(selected);
     if (envelopes.some(value => fields(value).some((field, index) => field !== identity[index]))) throw new Error('响应包装中的文件分块身份或范围冲突，已停止读取。');
@@ -572,7 +593,7 @@ export function renderFileWidget(): string {
         if (envelope?.source?.device_id !== data.device_id || (data.instance_id && envelope?.source?.instance_id !== data.instance_id)
           || chunk?.ticket_id !== delivery.ticketId || chunk?.offset !== offset || chunk?.size_bytes !== expectedSize
           || chunk?.total_bytes !== data.size_bytes || chunk?.sha256 !== data.sha256 || chunk?.eof !== isLast
-          || chunk?.next_offset !== (isLast ? null : nextOffset)) throw new Error('文件分块身份、范围或完整文件元数据不一致。');
+          || comparableNextOffset(chunk) !== (isLast ? null : nextOffset)) throw new Error('文件分块身份、范围或完整文件元数据不一致。');
         if (typeof chunk.chunk_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(chunk.chunk_sha256)) throw new Error('文件分块 SHA-256 元数据无效。');
         const decoded = decodeBytes(result?._meta?.webcodexChunk?.base64, expectedSize);
         if (await shaHex(decoded) !== chunk.chunk_sha256) throw new Error('文件分块 SHA-256 不一致，已停止读取。');

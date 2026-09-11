@@ -38,7 +38,7 @@ function selectStdin(execution: { stdinMaxBytes?: number; stdinMaxTotalBytes?: n
 for (const format of ['json', 'toml'] as const) {
   test(`${format} v0.8 defaults and partial limits preserve disabled execution and do not open state`, async t => {
     const f = await fixture(t, format);
-    assert.deepEqual(f.raw.fileBatches, batchDefaults); assert.deepEqual(selectStdin(f.raw.execution), stdinDefaults);
+    assert.deepEqual(f.raw.fileBatches, {...batchDefaults,binaryMaxTotalBytes:134217728}); assert.deepEqual(selectStdin(f.raw.execution), stdinDefaults);
     const { fileBatches: _batch, ...withoutBatch } = f.raw;
     const { stdinMaxBytes: _single, stdinMaxTotalBytes: _total, stdinWriteTimeoutMs: _timeout, ...execution } = withoutBatch.execution;
     await f.write({ ...withoutBatch, execution });
@@ -145,6 +145,6 @@ test('legacy v1 keeps its schema and migration supplies v0.8 limits without enab
   const applied = await migrateConfiguration({ source: f.configPath, output, apply: true });
   assert.equal(applied.applied, true);
   const loaded = await loadConfig(output);
-  assert.equal(loaded.version, 2); assert.deepEqual(loaded.fileBatches, batchDefaults);
+  assert.equal(loaded.version, 2); assert.deepEqual(loaded.fileBatches, {...batchDefaults,binaryMaxTotalBytes:134217728});
   assert.deepEqual(selectStdin(loaded.execution), stdinDefaults); assert.equal(loaded.execution.mode, 'disabled');
 });

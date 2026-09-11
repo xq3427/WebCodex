@@ -944,6 +944,78 @@ for (const [label, wrap] of [
   }
 });
 
+for (const standard of [false, true]) test(`${standard ? 'standard' : 'compatibility'} file chunks accept omitted EOF null only after exact byte verification`, async () => {
+  const omitTerminalNext = (value: any) => {
+    if (value.structuredContent.data.eof === true) delete value.structuredContent.data.next_offset;
+    return value;
+  };
+  const wrappers = [
+    (value: any) => omitTerminalNext(value),
+    (value: any) => ({ structuredContent: omitTerminalNext(structuredClone(value)).structuredContent, mcp_tool_result: value }),
+    (value: any) => ({ structuredContent: structuredClone(value.structuredContent), call_tool_result: omitTerminalNext(value) }),
+    (value: any) => ({ mcp_tool_result: omitTerminalNext(structuredClone(value)), call_tool_result: value }),
+  ];
+  for (const size of [0, 2489, 9001]) for (const wrap of wrappers) {
+    const bytes = Buffer.from(Array.from({ length: size }, (_, index) => (index * 71 + 13) % 256));
+    const ticket = ticketFile(bytes), calls: any[] = [], uploads: File[] = [];
+    const tool = ticketTool(bytes, ticket, calls, wrap);
+    const h = harness({ ...(standard ? {} : { callTool: tool }),
+      uploadFile: async (file: File) => { uploads.push(file); return { fileId: 'verified-terminal-omission' }; } },
+    { rpc: request => { assert.equal(request.method, 'tools/call'); return tool(request.params.name, request.params.arguments); } });
+    if (standard) await h.initialize();
+    await h.result(ticket);
+    await waitState(h, 'ready');
+    const expectedOffsets = Array.from({ length: Math.max(1, Math.ceil(size / 4096)) }, (_, index) => index * 4096);
+    assert.deepEqual(calls.filter(call => call.name === 'file_widget_read').map(call => call.args.offset), expectedOffsets);
+    assert.equal(calls.filter(call => call.name === 'file_widget_release').length, 1);
+    assert.equal(uploads.length, 0);
+    await h.get('upload').trigger('click');
+    assert.equal(uploads.length, 1);
+    assert.deepEqual(Buffer.from(await uploads[0].arrayBuffer()), bytes);
+    assert.equal(h.sent.some(message => message.method === 'ui/message'), false);
+  }
+});
+
+test('EOF omission cannot hide partial ranges, wrong terminal values, identity changes or corrupt bytes', async () => {
+  const cases: Array<{ size: number; edit: (value: any) => any; wrongWholeHash?: boolean }> = [
+    ...[0, 2489, false, 'null', {}, []].map(next => ({ size: 2489, edit: (value: any) => {
+      value.structuredContent.data.next_offset = next; return value;
+    } })),
+    { size: 2489, edit: value => { delete value.structuredContent.data.eof; return value; } },
+    { size: 2489, edit: value => { value.structuredContent.data.total_bytes++; return value; } },
+    { size: 2489, edit: value => { value.structuredContent.data.size_bytes--; return value; } },
+    { size: 2489, edit: value => { value.structuredContent.source.device_id = 'wrong-device'; return value; } },
+    { size: 2489, edit: value => { value.structuredContent.data.chunk_sha256 = '0'.repeat(64); return value; } },
+    { size: 2489, edit: value => {
+      const changed = Buffer.from(value._meta.webcodexChunk.base64, 'base64'); changed[0] ^= 0xff;
+      value._meta.webcodexChunk.base64 = changed.toString('base64'); return value;
+    } },
+    { size: 2489, wrongWholeHash: true, edit: value => value },
+    { size: 9001, edit: value => { delete value.structuredContent.data.next_offset; return value; } },
+    { size: 9001, edit: value => { delete value.structuredContent.data.next_offset; value.structuredContent.data.eof = true; return value; } },
+    { size: 9001, edit: value => {
+      const summary = structuredClone(value.structuredContent); delete summary.data.next_offset;
+      return { structuredContent: summary, mcp_tool_result: value };
+    } },
+  ];
+  for (const { size, edit, wrongWholeHash } of cases) {
+    const bytes = Buffer.alloc(size, 0x71), ticket = ticketFile(bytes), calls: any[] = [];
+    if (wrongWholeHash) ticket.structuredContent.data.sha256 = '0'.repeat(64);
+    const tool = ticketTool(bytes, ticket, calls, value => {
+      if (value.structuredContent.data.eof === true) delete value.structuredContent.data.next_offset;
+      return edit(value);
+    });
+    const h = harness({ callTool: tool, uploadFile: async () => { assert.fail('Invalid terminal or partial chunk was uploaded'); } });
+    await h.result(ticket);
+    await waitState(h, 'failure');
+    assert.equal(calls.filter(call => call.name === 'file_widget_read').length, 1);
+    assert.equal(calls.filter(call => call.name === 'file_widget_release').length, 1);
+    assert.equal(h.get('upload').disabled, true);
+    await h.get('upload').trigger('click');
+    assert.equal(h.sent.some(message => message.method === 'ui/message'), false);
+  }
+});
+
 test('private chunk normalization rejects anonymous, conflicting, failed and uninspected wrapped results before decoding', async () => {
   const edits = [
     (chunk: any) => ({ unknown_result: chunk }),

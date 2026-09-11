@@ -4,15 +4,18 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { applyPatch as applyUnifiedPatch, createTwoFilesPatch, parsePatch } from 'diff';
 import { AppError, errorResult } from './errors.js';
-import type { ServiceContext } from './types.js';
+import type { ServiceContext, Store } from './types.js';
 import { redactSessionText } from './codex-redaction.js';
-import { addRecordBinding, assertRecordBinding, boundOperation, initializeIdentity } from './identity.js';
+import { addRecordBinding, assertRecordBinding, initializeIdentity } from './identity.js';
 import { assertPatchInputSize } from './patch-limits.js';
+import { fileOperations, type FileOperationAttempt, type FileOperationTool } from './file-operations.js';
 
 type FileInput = { workspace_id: string; path: string };
 type ReadInput = FileInput & { start_line?: number; end_line?: number };
 type WriteInput = FileInput & { content: string; expected_sha256: string | null; idempotency_key: string };
-type ChangeRow = { id: string; workspace_id: string; workspace_binding: string | null; path: string; before_blob: Uint8Array | null; before_sha256: string | null; after_sha256: string | null; before_mode: number | null; after_mode: number | null; status: string; created_at: string; restores_id: string | null };
+export type WriteBytesInput = FileInput & { bytes: Buffer; expected_sha256: string | null; idempotency_key: string };
+type WriteBytesGuards = { additionalLockedPaths?: string[]; beforeCommit?: () => Promise<void> };
+type ChangeRow = { id: string; workspace_id: string; workspace_binding: string | null; path: string; before_blob: Uint8Array | null; before_sha256: string | null; after_sha256: string | null; before_mode: number | null; after_mode: number | null; status: string; created_at: string; restores_id: string | null; write_kind: 'text' | 'bytes' | null };
 type ChangeModes = { beforeMode?: number | null; afterMode?: number | null };
 export type TextFormat = { encoding: 'utf8' | 'utf16le' | 'utf16be'; bom: boolean; newline: 'lf' | 'crlf' | 'mixed' | 'none' };
 export const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -21,6 +24,7 @@ const integer = (value: number, min: number, max: number, label: string) => {
   return value;
 };
 const isMissing = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
+const initializedFileStores = new WeakSet<Store>();
 const sameIdentity = (a: BigIntStats, b: BigIntStats) => a.ino === b.ino && a.birthtimeNs === b.birthtimeNs && (a.dev === b.dev || process.platform === 'win32' && (a.dev === 0n || b.dev === 0n));
 const validateHash = (value: string | null) => {
   if (value !== null && !/^[a-f0-9]{64}$/i.test(value)) throw new AppError('INVALID_ARGUMENT', 'expected_sha256 must be a SHA-256 hex string or null for an absent file.');
@@ -104,15 +108,32 @@ export class FileService {
     addRecordBinding(ctx.store, 'file_changes');
     const columns = new Set(ctx.store.db.prepare('PRAGMA table_info(file_changes)').all().map(row => row.name));
     for (const column of ['before_mode', 'after_mode']) if (!columns.has(column)) ctx.store.db.exec(`ALTER TABLE file_changes ADD COLUMN ${column} INTEGER`);
+    if (!columns.has('write_kind')) ctx.store.db.exec('ALTER TABLE file_changes ADD COLUMN write_kind TEXT');
+    if (!initializedFileStores.has(ctx.store)) {
+      ctx.store.db.exec("UPDATE file_changes SET status='unknown' WHERE status='pending'");
+      initializedFileStores.add(ctx.store);
+    }
+    fileOperations(ctx);
   }
 
   private relative(workspaceId: string, absolute: string) { return path.relative(this.ctx.paths.get(workspaceId).root, absolute).split(path.sep).join('/') || '.'; }
+  private binaryLimit() { return this.ctx.config.limits.binaryWriteMaxBytes ?? 33_554_432; }
+  private snapshotLimit() { return Math.max(this.ctx.config.limits.writeMaxBytes, this.binaryLimit()); }
+  private changeLimit(row: ChangeRow) {
+    if (row.write_kind !== null && row.write_kind !== 'bytes' && row.write_kind !== 'text') throw new AppError('CHANGE_CORRUPT', 'Saved file write kind is invalid.');
+    return row.write_kind === 'bytes' ? this.snapshotLimit() : this.ctx.config.limits.writeMaxBytes;
+  }
 
-  private async locked<T>(key: string, action: () => Promise<T>): Promise<T> {
+  private async lockKey(key: string) {
     // Include filesystem aliases (for example Windows short names) in the same lock.
     try { key = await fs.realpath(key); }
     catch (error) { if (!isMissing(error)) throw error; key = path.join(await fs.realpath(path.dirname(key)), path.basename(key)); }
     if (process.platform === 'win32') key = key.toLowerCase();
+    return key;
+  }
+
+  private async locked<T>(key: string, action: () => Promise<T>): Promise<T> {
+    key = await this.lockKey(key);
     const previous = this.locks.get(key) ?? Promise.resolve();
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
@@ -125,13 +146,16 @@ export class FileService {
 
   /** Internal multi-file coordination. Callers must resolve paths before entering. */
   async withPathsLocked<T>(paths: string[], action: () => Promise<T>): Promise<T> {
-    const keys = [...new Set(paths.map(value => process.platform === 'win32' ? value.toLowerCase() : value))].sort();
+    const keys = [...new Set(await Promise.all(paths.map(value => this.lockKey(value))))].sort();
     const next = (index: number): Promise<T> => index === keys.length ? action() : this.locked(keys[index], () => next(index + 1));
     return next(0);
   }
 
   /** Internal byte snapshot shared with batches; policy must be checked by the caller. */
-  async snapshotForBatch(absolute: string, maxBytes = this.ctx.config.limits.writeMaxBytes) { return this.snapshot(absolute, Math.min(maxBytes, this.ctx.config.limits.writeMaxBytes), true); }
+  async snapshotForBatch(absolute: string, maxBytes?: number, writeKind: 'text' | 'bytes' = 'text') {
+    const limit = writeKind === 'bytes' ? this.binaryLimit() : this.ctx.config.limits.writeMaxBytes;
+    return this.snapshot(absolute, Math.min(maxBytes ?? limit, limit), true);
+  }
 
   /** Permission bits only: ownership, ACLs, and special set-ID bits are not copied. */
   async modeForBatch(absolute: string): Promise<number | null> {
@@ -198,6 +222,34 @@ export class FileService {
 
   async read(input: ReadInput) {
     return this.readBounded(input, this.ctx.config.limits.readMaxBytes);
+  }
+
+  /** Observe exact bytes and a CAS hash without decoding or returning file contents. */
+  async stat(input: FileInput) {
+    const absolute = await this.ctx.paths.resolve(input.workspace_id, input.path);
+    const bytes = (await this.snapshot(absolute, this.snapshotLimit()))!;
+    await this.ctx.paths.resolve(input.workspace_id, input.path);
+    initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
+    const relative = this.relative(input.workspace_id, absolute);
+    this.ctx.store.audit('fs_stat', input.workspace_id, { path: relative, size_bytes: bytes.length });
+    return { workspace_id: input.workspace_id, path: relative, kind: 'file' as const, size_bytes: bytes.length, sha256: hash(bytes) };
+  }
+
+  async operationStatus(input: { workspace_id: string; tool: FileOperationTool; idempotency_key: string }) {
+    await this.ctx.paths.resolve(input.workspace_id, '.', { directory: true });
+    const recorded = fileOperations(this.ctx).status(input);
+    let observation: Record<string, unknown> | null = null;
+    if (recorded.path) {
+      try {
+        if (input.tool === 'fs_mkdir') {
+          await this.ctx.paths.resolve(input.workspace_id, recorded.path, { directory: true });
+          initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
+          observation = { status: 'available', kind: 'directory', path: recorded.path };
+        } else observation = { status: 'available', ...(await this.stat({ workspace_id: input.workspace_id, path: recorded.path })) };
+      }
+      catch (error) { observation = { status: isMissing(error) ? 'absent' : 'unavailable', error_code: errorResult(error).error.code }; }
+    }
+    return { ...recorded, current_observation: observation };
   }
 
   /** Scrub the complete decoded text before imposing response limits; preserve its raw-byte hash. */
@@ -345,9 +397,9 @@ export class FileService {
     });
   }
 
-  private idempotent<T>(workspaceId: string, tool: string, key: string, payload: unknown, action: () => Promise<T>) {
+  private idempotent<T>(workspaceId: string, tool: FileOperationTool, key: string, payload: unknown, action: (operation: FileOperationAttempt) => Promise<T>, operationPath?: string) {
     if (!key || key.length > 200) throw new AppError('INVALID_ARGUMENT', 'idempotency_key must contain 1 to 200 characters.');
-    return boundOperation(this.ctx, workspaceId, tool, key, payload, action, [`local-user/${workspaceId}/${tool}`]);
+    return fileOperations(this.ctx).run({ workspace_id: workspaceId, tool, idempotency_key: key, payload, path: operationPath ?? (payload as { path?: string }).path ?? '' }, action);
   }
 
   private assertVersion(before: Buffer | null, expected: string | null) {
@@ -356,64 +408,78 @@ export class FileService {
     if (actual !== expected?.toLowerCase() && !(actual === null && expected === null)) throw new AppError('VERSION_CONFLICT', 'The current file version differs from expected_sha256. Read the file again before editing.', { expected_sha256: expected, actual_sha256: actual });
   }
 
-  private savedVersion(row: ChangeRow): Buffer | null {
-    if (row.before_blob !== null && row.before_blob.length > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', 'The saved version exceeds the current write limit.');
+  private savedVersion(row: ChangeRow, forRestore = true): Buffer | null {
+    const maxBytes = forRestore && row.write_kind === 'bytes' ? this.binaryLimit() : this.changeLimit(row);
+    if (row.before_blob !== null && row.before_blob.length > maxBytes) throw new AppError('FILE_TOO_LARGE', 'The saved version exceeds its current write limit.');
     const bytes = row.before_blob === null ? null : Buffer.from(row.before_blob);
     if ((bytes === null ? null : hash(bytes)) !== row.before_sha256) throw new AppError('CHANGE_CORRUPT', 'The saved file version does not match its recorded hash. Review local change history.');
     return bytes;
   }
 
   /** Internal: persist a before-image without touching the project. Batch preparation calls this for every path first. */
-  prepareBatchChange(workspaceId: string, relative: string, before: Buffer | null, after: Buffer | null, modes: ChangeModes = {}) {
+  prepareBatchChange(workspaceId: string, relative: string, before: Buffer | null, after: Buffer | null, modes: ChangeModes = {}, writeKind: 'text' | 'bytes' = 'text') {
     const binding = initializeIdentity(this.ctx).workspaceIdentity(workspaceId);
     const beforeHash = before === null ? null : hash(before);
     const afterHash = after === null ? null : hash(after);
     if (beforeHash === afterHash) return null;
     const id = randomUUID();
-    this.ctx.store.db.prepare('INSERT INTO file_changes(id,workspace_id,workspace_binding,path,before_blob,before_sha256,after_sha256,before_mode,after_mode,status,created_at,restores_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(id, workspaceId, binding, relative, before, beforeHash, afterHash, modes.beforeMode ?? null, modes.afterMode ?? null, 'pending', new Date().toISOString(), null);
+    this.ctx.store.db.prepare('INSERT INTO file_changes(id,workspace_id,workspace_binding,path,before_blob,before_sha256,after_sha256,before_mode,after_mode,status,created_at,restores_id,write_kind) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, workspaceId, binding, relative, before, beforeHash, afterHash, modes.beforeMode ?? null, modes.afterMode ?? null, 'pending', new Date().toISOString(), null, writeKind);
     return id;
   }
 
   /** Internal: caller holds every affected path lock and has already checked its policy. */
-  commitForBatch(workspaceId: string, relative: string, absolute: string, before: Buffer | null, after: Buffer | null, preparedId?: string | null, restoresId: string | null = null, modes: ChangeModes = {}) {
-    return this.commit(workspaceId, relative, absolute, before, after, restoresId, preparedId, modes);
+  commitForBatch(workspaceId: string, relative: string, absolute: string, before: Buffer | null, after: Buffer | null, preparedId?: string | null, restoresId: string | null = null, modes: ChangeModes = {}, writeKind: 'text' | 'bytes' = 'text') {
+    return this.commit(workspaceId, relative, absolute, before, after, restoresId, preparedId, modes, writeKind === 'bytes', writeKind === 'bytes' ? this.binaryLimit() : this.ctx.config.limits.writeMaxBytes, writeKind);
   }
 
-  private async commit(workspaceId: string, relative: string, absolute: string, before: Buffer | null, after: Buffer | null, restoresId: string | null = null, preparedId?: string | null, modes: ChangeModes = {}) {
+  private async commit(workspaceId: string, relative: string, absolute: string, before: Buffer | null, after: Buffer | null, restoresId: string | null = null, preparedId?: string | null, modes: ChangeModes = {}, verifyBytes = false, maxBytes = this.ctx.config.limits.writeMaxBytes, writeKind: 'text' | 'bytes' = 'text', operation?: FileOperationAttempt, beforeCommit?: () => Promise<void>) {
     const binding = initializeIdentity(this.ctx).workspaceIdentity(workspaceId);
     const beforeHash = before === null ? null : hash(before);
     const afterHash = after === null ? null : hash(after);
+    if (after !== null) operation?.content(afterHash!, after.length);
+    await beforeCommit?.();
     if (beforeHash === afterHash) return { workspace_id: workspaceId, path: relative, changed: false, change_id: null, sha256: afterHash };
     const beforeMode = modes.beforeMode !== undefined ? modes.beforeMode : await this.modeForBatch(absolute);
     const afterMode = after === null ? null : modes.afterMode ?? beforeMode ?? (process.platform === 'win32' ? 0o666 : 0o600);
     for (const mode of [beforeMode, afterMode]) if (mode !== null && (!Number.isSafeInteger(mode) || mode < 0 || mode > 0o777)) throw new AppError('CHANGE_CORRUPT', 'Saved permission bits are invalid.');
-    const id = preparedId ?? this.prepareBatchChange(workspaceId, relative, before, after, { beforeMode, afterMode })!;
+    const id = preparedId ?? this.prepareBatchChange(workspaceId, relative, before, after, { beforeMode, afterMode }, writeKind)!;
     const saved = this.ctx.store.db.prepare('SELECT * FROM file_changes WHERE id=?').get(id) as ChangeRow | undefined;
-    if (!saved || saved.workspace_id !== workspaceId || saved.workspace_binding !== binding || saved.path !== relative || saved.status !== 'pending' || saved.before_sha256 !== beforeHash || saved.after_sha256 !== afterHash || saved.before_mode !== beforeMode || saved.after_mode !== afterMode) throw new AppError('CHANGE_CORRUPT', 'Prepared change metadata no longer matches this file operation.');
-    this.savedVersion(saved);
+    if (!saved || saved.workspace_id !== workspaceId || saved.workspace_binding !== binding || saved.path !== relative || saved.status !== 'pending' || saved.before_sha256 !== beforeHash || saved.after_sha256 !== afterHash || saved.before_mode !== beforeMode || saved.after_mode !== afterMode || (saved.write_kind ?? 'text') !== writeKind) throw new AppError('CHANGE_CORRUPT', 'Prepared change metadata no longer matches this file operation.');
+    this.savedVersion(saved, false);
+    operation?.linkChange(id);
     if (restoresId) this.ctx.store.db.prepare('UPDATE file_changes SET restores_id=? WHERE id=?').run(restoresId, id);
     let temporary: string | null = null;
     let replaced = false;
     try {
       if (after !== null) {
-        if (after.length > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', `The output exceeds the ${this.ctx.config.limits.writeMaxBytes} byte write limit.`);
+        if (after.length > maxBytes) throw new AppError('FILE_TOO_LARGE', `The output exceeds the ${maxBytes} byte write limit.`);
         temporary = path.join(path.dirname(absolute), `.webcodex-write-${id}.tmp`);
         const handle = await fs.open(temporary, 'wx', 0o600);
         try { await handle.writeFile(after); await handle.chmod(afterMode!); await handle.sync(); } finally { await handle.close(); }
       }
+      await beforeCommit?.();
       await this.ctx.paths.resolve(workspaceId, relative, { write: true, allowMissing: before === null });
       initializeIdentity(this.ctx).workspaceIdentity(workspaceId);
-      this.assertVersion(await this.snapshot(absolute, this.ctx.config.limits.writeMaxBytes, true), beforeHash);
+      this.assertVersion(await this.snapshot(absolute, maxBytes, true), beforeHash);
       if (await this.modeForBatch(absolute) !== beforeMode) throw new AppError('VERSION_CONFLICT', 'The file permissions changed before this operation.');
       if (after === null) { await fs.unlink(absolute); replaced = true; }
       else if (before === null) { await fs.link(temporary!, absolute); replaced = true; await fs.unlink(temporary!); temporary = null; }
       else { await fs.rename(temporary!, absolute); replaced = true; temporary = null; }
+      if (verifyBytes) {
+        await this.ctx.paths.resolve(workspaceId, relative, { write: true, allowMissing: after === null });
+        initializeIdentity(this.ctx).workspaceIdentity(workspaceId);
+        const savedBytes = await this.snapshot(absolute, maxBytes, true);
+        if ((savedBytes === null ? null : hash(savedBytes)) !== afterHash || savedBytes?.length !== after?.length) {
+          throw new AppError('FILE_WRITE_VERIFICATION_FAILED', 'The destination bytes changed before save verification completed. Inspect the current file and change history before any further write.', { change_id: id });
+        }
+      }
       this.ctx.store.db.prepare("UPDATE file_changes SET status='applied' WHERE id=?").run(id);
       if (restoresId) this.ctx.store.db.prepare("UPDATE file_changes SET status='restored' WHERE id=?").run(restoresId);
       this.ctx.store.audit('file_change', workspaceId, { change_id: id, path: relative, before_sha256: beforeHash, after_sha256: afterHash, restores_id: restoresId });
       return { workspace_id: workspaceId, path: relative, changed: true, change_id: id, sha256: afterHash };
     } catch (error) {
       this.ctx.store.db.prepare('UPDATE file_changes SET status=?,error=? WHERE id=?').run(replaced ? 'unknown' : 'failed', error instanceof AppError ? error.code : (error as NodeJS.ErrnoException).code ?? 'INTERNAL_ERROR', id);
+      if (!replaced) operation?.noMutation();
       throw error;
     } finally { if (temporary) await fs.unlink(temporary).catch(() => {}); }
   }
@@ -422,7 +488,7 @@ export class FileService {
     validateHash(input.expected_sha256);
     if (Buffer.byteLength(input.content) > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', 'The supplied text exceeds the write limit.');
     const absolute = await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true, allowMissing: true });
-    return this.idempotent(input.workspace_id, 'fs_write', input.idempotency_key, input, () => this.locked(absolute, async () => {
+    return this.idempotent(input.workspace_id, 'fs_write', input.idempotency_key, input, operation => this.locked(absolute, async () => {
       await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true, allowMissing: true });
       initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
       const before = await this.snapshot(absolute, this.ctx.config.limits.writeMaxBytes, true);
@@ -430,8 +496,29 @@ export class FileService {
       const format: TextFormat = before === null ? { encoding: 'utf8', bom: false, newline: 'none' } : decode(before).format;
       const after = encode(input.content, format);
       if (after.length > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', 'Encoded output exceeds the write limit.');
-      return this.commit(input.workspace_id, this.relative(input.workspace_id, absolute), absolute, before, after);
+      return this.commit(input.workspace_id, this.relative(input.workspace_id, absolute), absolute, before, after, null, undefined, {}, false, this.ctx.config.limits.writeMaxBytes, 'text', operation);
     }));
+  }
+
+  /** Save exact bytes without text conversion; receipts describe verification at commit time. */
+  async writeBytes(input: WriteBytesInput, parentOperation?: FileOperationAttempt, guards: WriteBytesGuards = {}) {
+    validateHash(input.expected_sha256);
+    if (!Buffer.isBuffer(input.bytes)) throw new AppError('INVALID_ARGUMENT', 'bytes must be a Buffer containing the complete file.');
+    const maxBytes = this.snapshotLimit();
+    if (input.bytes.length > this.binaryLimit()) throw new AppError('FILE_TOO_LARGE', 'The supplied file exceeds the binary write limit.');
+    // Own the payload before awaiting path checks: callers may reuse their input buffer.
+    const bytes = Buffer.from(input.bytes);
+    const request = { workspace_id: input.workspace_id, path: input.path, expected_sha256: input.expected_sha256, idempotency_key: input.idempotency_key, size_bytes: bytes.length, content_sha256: hash(bytes) };
+    const absolute = await this.ctx.paths.resolve(request.workspace_id, request.path, { write: true, allowMissing: true });
+    const write = (operation: FileOperationAttempt) => this.withPathsLocked([absolute, ...(guards.additionalLockedPaths ?? [])], async () => {
+      await this.ctx.paths.resolve(request.workspace_id, request.path, { write: true, allowMissing: true });
+      initializeIdentity(this.ctx).workspaceIdentity(request.workspace_id);
+      const before = await this.snapshot(absolute, maxBytes, true);
+      this.assertVersion(before, request.expected_sha256);
+      const result = await this.commit(request.workspace_id, this.relative(request.workspace_id, absolute), absolute, before, bytes, null, undefined, {}, true, maxBytes, 'bytes', operation, guards.beforeCommit);
+      return { ...result, size_bytes: bytes.length, verified: true as const };
+    });
+    return parentOperation ? write(parentOperation) : this.idempotent(request.workspace_id, 'fs_write_bytes', request.idempotency_key, request, write);
   }
 
   async applyPatch(input: FileInput & { patch: string; expected_sha256: string; idempotency_key: string; dry_run?: boolean }) {
@@ -439,7 +526,7 @@ export class FileService {
     if (!input.expected_sha256) throw new AppError('INVALID_ARGUMENT', 'A patch requires an existing file SHA-256.');
     assertPatchInputSize(input.patch, this.ctx.config.limits.writeMaxBytes);
     const absolute = await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true });
-    return this.idempotent(input.workspace_id, 'fs_apply_patch', input.idempotency_key, input, () => this.locked(absolute, async () => {
+    return this.idempotent(input.workspace_id, 'fs_apply_patch', input.idempotency_key, input, operation => this.locked(absolute, async () => {
       await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true });
       initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
       const before = (await this.snapshot(absolute, this.ctx.config.limits.writeMaxBytes))!;
@@ -448,7 +535,7 @@ export class FileService {
       const after = preparePatchedBytes(relative, before, input.patch);
       if (after.length > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', 'Patched file exceeds the write limit.');
       if (input.dry_run) return { workspace_id: input.workspace_id, path: relative, dry_run: true, changed: !before.equals(after), sha256: hash(after), previous_sha256: hash(before), change_id: null };
-      return this.commit(input.workspace_id, relative, absolute, before, after);
+      return this.commit(input.workspace_id, relative, absolute, before, after, null, undefined, {}, false, this.ctx.config.limits.writeMaxBytes, 'text', operation);
     }));
   }
 
@@ -475,29 +562,45 @@ export class FileService {
       if (currentRow?.status !== 'applied') throw new AppError('CHANGE_NOT_RESTORABLE', 'Only a confirmed, applied change can be previewed for restoration. Pending, restored, or unknown records require local review.');
       await this.ctx.paths.resolve(input.workspace_id, row.path, { allowMissing: true });
       initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
-      const current = await this.snapshot(absolute, this.ctx.config.limits.writeMaxBytes, true);
+      const current = await this.snapshot(absolute, this.changeLimit(row), true);
       // History stores the before-image only. Never reconstruct an old after-image from
       // a newer file version, since that would describe a restore that is not permitted.
       this.assertVersion(current, row.after_sha256);
       const target = this.savedVersion(row);
-      const currentText = current === null ? null : decode(current);
-      const targetText = target === null ? null : decode(target);
       const relative = this.relative(input.workspace_id, absolute);
+      const operation = current === null ? 'create' as const : target === null ? 'delete' as const : 'modify' as const;
+      let currentText: ReturnType<typeof decode> | null = null;
+      let targetText: ReturnType<typeof decode> | null = null;
+      // Exact-byte imports may be large ASCII PDFs or encoded files; preview metadata
+      // without interpreting the document format or running a large text diff.
+      let binary = row.write_kind === 'bytes';
+      if (!binary) try {
+        currentText = current === null ? null : decode(current);
+        targetText = target === null ? null : decode(target);
+      } catch (error) {
+        if (!(error instanceof AppError) || !['BINARY_FILE', 'UNSUPPORTED_ENCODING'].includes(error.code)) throw error;
+        binary = true;
+      }
+      if (binary) {
+        this.ctx.store.audit('changes_preview', input.workspace_id, { change_id: row.id, path: relative, direction: 'restore', operation, diff_kind: 'binary', truncated: false });
+        return { workspace_id: input.workspace_id, change_id: row.id, path: relative, direction: 'restore' as const, operation, current_sha256: row.after_sha256, restore_sha256: row.before_sha256, current_size_bytes: current?.length ?? null, restore_size_bytes: target?.length ?? null, current_format: null, restore_format: null, diff_kind: 'binary' as const, diff: '', truncated: false, diff_bytes: 0, returned_bytes: 0, max_bytes: max, context_lines: context, note: 'This restoration changes exact file bytes. Byte imports and binary or unsupported-encoding files are previewed using sizes and SHA-256 values instead of a text diff.' };
+      }
       const patch = createTwoFilesPatch(current === null ? '/dev/null' : `a/${relative}`, target === null ? '/dev/null' : `b/${relative}`, currentText?.text ?? '', targetText?.text ?? '', undefined, undefined, { context, timeout: 1000, maxEditLength: 20_000 });
       if (patch === undefined) throw new AppError('DIFF_TOO_COMPLEX', 'The restoration diff exceeded its computation limit. Inspect the file and change metadata locally.');
       const output = capText(patch, max);
-      const operation = current === null ? 'create' as const : target === null ? 'delete' as const : 'modify' as const;
       this.ctx.store.audit('changes_preview', input.workspace_id, { change_id: row.id, path: relative, direction: 'restore', operation, truncated: output.truncated });
-      return { workspace_id: input.workspace_id, change_id: row.id, path: relative, direction: 'restore' as const, operation, current_sha256: row.after_sha256, restore_sha256: row.before_sha256, current_format: currentText?.format ?? null, restore_format: targetText?.format ?? null, diff: output.text, truncated: output.truncated, diff_bytes: Buffer.byteLength(patch, 'utf8'), returned_bytes: Buffer.byteLength(output.text, 'utf8'), max_bytes: max, context_lines: context };
+      return { workspace_id: input.workspace_id, change_id: row.id, path: relative, direction: 'restore' as const, operation, current_sha256: row.after_sha256, restore_sha256: row.before_sha256, current_size_bytes: current?.length ?? null, restore_size_bytes: target?.length ?? null, current_format: currentText?.format ?? null, restore_format: targetText?.format ?? null, diff_kind: 'text' as const, diff: output.text, truncated: output.truncated, diff_bytes: Buffer.byteLength(patch, 'utf8'), returned_bytes: Buffer.byteLength(output.text, 'utf8'), max_bytes: max, context_lines: context };
     });
   }
 
   async mkdir(input: FileInput & { idempotency_key: string }) {
     const absolute = await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true, allowMissing: true });
-    return this.idempotent(input.workspace_id, 'fs_mkdir', input.idempotency_key, input, () => this.locked(absolute, async () => {
+    return this.idempotent(input.workspace_id, 'fs_mkdir', input.idempotency_key, input, operation => this.locked(absolute, async () => {
       await this.ctx.paths.resolve(input.workspace_id, input.path, { write: true, allowMissing: true });
       initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
-      await fs.mkdir(absolute);
+      operation.mutationStarted();
+      try { await fs.mkdir(absolute); }
+      catch (error) { if (['EEXIST', 'ENOENT', 'ENOTDIR', 'EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) operation.noMutation(); throw error; }
       const relative = this.relative(input.workspace_id, absolute);
       this.ctx.store.audit('fs_mkdir', input.workspace_id, { path: relative });
       return { workspace_id: input.workspace_id, path: relative, created: true };
@@ -512,17 +615,19 @@ export class FileService {
     if (!row) throw new AppError('CHANGE_NOT_FOUND', 'No change with this ID exists in this workspace.');
     assertRecordBinding(row, binding, 'CHANGE_NOT_FOUND');
     const absolute = await this.ctx.paths.resolve(input.workspace_id, row.path, { write: true, allowMissing: true });
-    return this.idempotent(input.workspace_id, 'changes_restore', input.idempotency_key, input, async () => {
+    return this.idempotent(input.workspace_id, 'changes_restore', input.idempotency_key, input, async operation => {
       return this.locked(absolute, async () => {
         const currentRow = this.ctx.store.db.prepare('SELECT status FROM file_changes WHERE id=?').get(row.id);
         if (currentRow?.status !== 'applied') throw new AppError('CHANGE_NOT_RESTORABLE', 'Only a confirmed, applied change can be restored. Pending or unknown records require local review.');
         if ((input.expected_sha256?.toLowerCase() ?? null) !== row.after_sha256) throw new AppError('VERSION_CONFLICT', 'Restore requires the exact file version produced by this change.', { required_sha256: row.after_sha256 });
         await this.ctx.paths.resolve(input.workspace_id, row.path, { write: true, allowMissing: true });
-        const before = await this.snapshot(absolute, this.ctx.config.limits.writeMaxBytes, true);
+        const maxBytes = this.changeLimit(row);
+        const before = await this.snapshot(absolute, maxBytes, true);
         this.assertVersion(before, input.expected_sha256);
         const after = this.savedVersion(row);
-        return this.commit(input.workspace_id, row.path, absolute, before, after, row.id, undefined, { afterMode: row.before_mode ?? undefined });
+        const result = await this.commit(input.workspace_id, row.path, absolute, before, after, row.id, undefined, { afterMode: row.before_mode ?? undefined }, true, maxBytes, row.write_kind ?? 'text', operation);
+        return { ...result, size_bytes: after?.length ?? null, verified: true as const };
       });
-    });
+    }, row.path);
   }
 }

@@ -18,7 +18,7 @@ const argument = z.string().refine(value => !value.includes('\0') && Buffer.byte
 const executableSchema = z.union([text, z.object({ command: text, args: z.array(argument).max(256) }).strict()]);
 const profileSchema = z.object({ allowedExecutables: z.record(executableSchema), env: z.record(z.string()).refine(validExecutionEnvironment).optional() }).strict();
 const workspaceSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), name: z.string().min(1).max(120).refine(value => !/[\x00-\x1f\x7f]/.test(value)), root: text, readOnly: z.boolean().default(false) }).strict();
-const executionSchema = z.object({ mode: z.enum(['disabled','trusted-host']).default('disabled'), allowedExecutables: z.record(executableSchema).default({}), maxConcurrent: z.number().int().min(1).max(8).default(2), maxTimeoutMs: z.number().int().min(100).max(86400000).default(600000), maxOutputBytes: z.number().int().min(1024).max(52428800).default(5242880) }).strict();
+const executionSchema = z.object({ mode: z.enum(['disabled','trusted-host']).default('disabled'), commandPolicy: z.enum(['all','allowlist']).default('allowlist'), allowedExecutables: z.record(executableSchema).default({}), maxConcurrent: z.number().int().min(1).max(8).default(2), maxTimeoutMs: z.number().int().min(100).max(86400000).default(600000), maxOutputBytes: z.number().int().min(1024).max(52428800).default(5242880) }).strict();
 const codexSchema = z.object({ enabled: z.boolean().default(false), home: text.nullable().default(null) }).strict();
 const fileWidgetSchema = z.object({ mode: z.enum(['automatic', 'manual']).default('automatic'), compact: z.boolean().default(true), closeAfterSend: z.boolean().default(true) }).strict();
 const baseSchema = z.object({
@@ -27,7 +27,7 @@ const baseSchema = z.object({
   execution: executionSchema,
   fileWidget: fileWidgetSchema.default({}),
   diagnostics: z.object({ enabled: z.boolean().default(true), maxEvents: z.number().int().min(20).max(10000).default(1000) }).strict().default({}),
-  limits: z.object({ readMaxBytes: z.number().int().min(256).max(1048576).default(65536), fileReadMaxBytes: z.number().int().min(1024).max(134217728).default(16777216), fileTransferMaxBytes: z.number().int().min(1).max(7340032).optional(), fileWidgetUploadMaxBytes: z.number().int().min(1).max(536870912).optional(), fileWidgetTicketTtlMs: z.number().int().min(1000).max(1800000).optional(), fileWidgetCacheMaxBytes: z.number().int().min(1).max(268435456).optional(), fileWidgetChunkMaxBytes: z.number().int().min(4096).max(262144).optional(), writeMaxBytes: z.number().int().min(1024).max(4194304).default(1048576), searchMaxResults: z.number().int().min(1).max(1000).default(100), listMaxEntries: z.number().int().min(1).max(1000).default(200) }).strict().default({}),
+  limits: z.object({ readMaxBytes: z.number().int().min(256).max(1048576).default(65536), fileReadMaxBytes: z.number().int().min(1024).max(134217728).default(16777216), fileTransferMaxBytes: z.number().int().min(1).max(7340032).optional(), fileWidgetUploadMaxBytes: z.number().int().min(1).max(536870912).optional(), fileWidgetTicketTtlMs: z.number().int().min(1000).max(1800000).optional(), fileWidgetCacheMaxBytes: z.number().int().min(1).max(268435456).optional(), fileWidgetChunkMaxBytes: z.number().int().min(4096).max(262144).optional(), binaryWriteMaxBytes: z.number().int().min(1024).max(134217728).optional(), inlineBinaryWriteMaxBytes: z.number().int().min(1024).max(1048576).optional(), writeMaxBytes: z.number().int().min(1024).max(4194304).default(1048576), searchMaxResults: z.number().int().min(1).max(1000).default(100), listMaxEntries: z.number().int().min(1).max(1000).default(200) }).strict().default({}),
   rgPath: text.default('rg'),
   http: z.object({ port: z.number().int().min(1024).max(65535).default(8765) }).strict().default({}),
   codexSessions: codexSchema.default({})
@@ -55,12 +55,16 @@ const v2Schema = baseSchema.extend({
   localPanel: z.object({ port: z.number().int().min(1024).max(65535).default(8767) }).strict().default({}),
   nativeAttachment: nativeAttachmentSchema.optional(),
   execution: executionSchema.extend({ profiles: z.record(profileSchema).refine(value => Object.keys(value).length <= 32).optional(), defaultTimeoutMs: z.number().int().min(100).max(86400000).default(60000), env:z.record(z.string()).refine(validExecutionEnvironment).optional(), defaultWaitMs:z.number().int().min(0).max(20000).default(1000),maxWaitMs:z.number().int().min(1).max(20000).default(20000),stdinMaxBytes:z.number().int().min(1).max(1048576).default(65536),stdinMaxTotalBytes:z.number().int().min(1).max(16777216).default(1048576),stdinWriteTimeoutMs:z.number().int().min(100).max(20000).default(5000) }),
-  fileBatches:z.object({maxFiles:z.number().int().min(1).max(100).default(20),maxTotalBytes:z.number().int().min(1024).max(33554432).default(4194304)}).strict().default({}),
+  fileBatches:z.object({maxFiles:z.number().int().min(1).max(100).default(20),maxTotalBytes:z.number().int().min(1024).max(33554432).default(4194304),binaryMaxTotalBytes:z.number().int().min(1024).max(536870912).optional()}).strict().default({}),
+  fileImports:z.object({maxAttempts:z.number().int().min(1).max(10).default(3),downloadTimeoutMs:z.number().int().min(1000).max(300000).default(60000)}).strict().optional(),
+  binaryInputs:z.object({chunkMaxBytes:z.number().int().min(1024).max(262144).default(65536),maxSessions:z.number().int().min(1).max(16).default(4),maxCacheBytes:z.number().int().min(1024).max(536870912).default(67108864),ttlMs:z.number().int().min(1000).max(3600000).default(900000)}).strict().optional(),
   tasks:z.object({maxTasksPerWorkspace:z.number().int().min(1).max(10000).default(100),maxRevisionsPerTask:z.number().int().min(1).max(10000).default(100),maxTrackedFiles:z.number().int().min(1).max(100).default(20),maxSnapshotBytes:z.number().int().min(1024).max(134217728).default(16777216)}).strict().default({}),
   projectContext:z.object({maxDepth:z.number().int().min(1).max(128).default(32),maxFileBytes:z.number().int().min(1024).max(1048576).default(65536),maxTotalBytes:z.number().int().min(1024).max(4194304).default(262144)}).strict().default({}),
   codexSessions: codexSchema.extend({ maxWindowsPerRequest: z.number().int().min(1).max(8).default(4), maxRecordBytes: z.number().int().min(65536).max(1048576).default(1048576) }).default({}),
 }).strict();
 const schema = z.discriminatedUnion('version', [baseSchema, v2Schema]);
+// Internal consumers may translate safe schema paths; parser issues must never be returned verbatim.
+export { schema as configSchema };
 const invalid = () => new AppError('CONFIG_ERROR', 'Configuration validation failed. Check required fields, paths, types and supported values; sensitive values are not included in diagnostics.');
 
 /** Retained for existing v1 integrations. New installations use defaultUnifiedConfig. */
@@ -86,7 +90,8 @@ export function defaultUnifiedConfig(root: string, configPath: string, options: 
     stateDir: '${configDir}/state', toolsDir: '${configDir}/tools', nodePath: 'auto', gitPath: 'auto', rgPath: 'auto',
     workspaces: [{ id: 'default', uid: options.workspaceUid ?? randomUUID(), name: path.basename(root) || 'Workspace', root: path.isAbsolute(relative) ? path.resolve(root) : relative.split(path.sep).join('/') || '.', readOnly: false }],
     execution: { ...defaultConfig(root, configPath).execution, defaultTimeoutMs: 60000, defaultWaitMs:1000,maxWaitMs:20000,stdinMaxBytes:65536,stdinMaxTotalBytes:1048576,stdinWriteTimeoutMs:5000, allowedExecutables: { node: { command: '${nodePath}', args: [] as string[] } } },
-    fileBatches:{maxFiles:20,maxTotalBytes:4194304},
+    fileBatches:{maxFiles:20,maxTotalBytes:4194304,binaryMaxTotalBytes:134217728},
+    fileImports:{maxAttempts:3,downloadTimeoutMs:60000},
     tasks:{maxTasksPerWorkspace:100,maxRevisionsPerTask:100,maxTrackedFiles:20,maxSnapshotBytes:16777216},
     projectContext:{maxDepth:32,maxFileBytes:65536,maxTotalBytes:262144},
     tunnel: { enabled: false, id: '', apiKey: '', proxyUrl: '', clientPath: 'auto', clientVersion: 'auto' },

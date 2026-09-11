@@ -1,16 +1,38 @@
 #requires -Version 5.1
 [CmdletBinding()]
 param(
+    [string]$Config,
     [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+$')]
     [string]$Version,
     [ValidateSet('amd64', 'arm64')]
-    [string]$Architecture = $(if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' })
+    [string]$Architecture,
+    [switch]$ResolveOnly
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$toolsRoot = Join-Path $projectRoot '.webcodex\tools\tunnel-client'
+$node = (Get-Command node -ErrorAction Stop).Source
+$resolver = Join-Path $PSScriptRoot 'resolve-tunnel-install.mjs'
+if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'dist\src\config.js') -PathType Leaf)) {
+    throw 'Build WebCodex with npm run build and initialize a unified configuration before installing the tunnel client.'
+}
+$resolverArgs = @($resolver)
+if ($PSBoundParameters.ContainsKey('Config')) {
+    if ([string]::IsNullOrWhiteSpace($Config)) { throw 'Config must name the selected TOML or JSON configuration.' }
+    $resolverArgs += @('--config', $Config)
+}
+if ($Architecture) { $resolverArgs += @('--architecture', $Architecture) }
+$resolvedJson = & $node @resolverArgs 2>$null
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the selected unified configuration. Run config validate with the same configuration selection before installing.' }
+$resolved = ($resolvedJson -join "`n") | ConvertFrom-Json
+$toolsRoot = [IO.Path]::GetFullPath([string]$resolved.client_root)
+if (-not $Architecture) { $Architecture = [string]$resolved.architecture }
+if ($Architecture -notin @('amd64', 'arm64')) { throw 'The selected Node runtime architecture is not supported by this installer.' }
+if ($ResolveOnly) {
+    Write-Output ($resolvedJson -join "`n")
+    return
+}
 $curl = (Get-Command curl.exe -ErrorAction Stop).Source
 
 function Get-PublicFile([string]$Url, [string]$Destination, [string]$Accept = 'application/vnd.github+json') {
@@ -21,16 +43,17 @@ function Get-PublicFile([string]$Url, [string]$Destination, [string]$Accept = 'a
 }
 
 function Assert-PlainDirectory([string]$Path) {
-    $candidate = $Path
-    while ($candidate -and $candidate.StartsWith($projectRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    $candidate = [IO.Path]::GetFullPath($Path)
+    while ($candidate) {
         if (Test-Path -LiteralPath $candidate) {
             $item = Get-Item -LiteralPath $candidate -Force
-            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
                 throw "Refusing an installation directory containing a reparse point: $candidate"
             }
         }
-        if ($candidate -eq $projectRoot) { break }
-        $candidate = Split-Path -Parent $candidate
+        $parent = Split-Path -Parent $candidate
+        if (-not $parent -or $parent -eq $candidate) { break }
+        $candidate = $parent
     }
 }
 

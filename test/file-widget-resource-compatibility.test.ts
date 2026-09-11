@@ -13,6 +13,10 @@ import { defaultUnifiedConfig, loadConfig } from '../src/config.js';
 import { FILE_WIDGET_URI, FILE_WIDGET_MIME_TYPE, LEGACY_FILE_WIDGET_URIS } from '../src/file-widget.js';
 import { startHttp } from '../src/http.js';
 import { VERSION } from '../src/version.js';
+import { READING_RELAY_URI } from '../src/reading-relay-widget.js';
+import { LEGACY_READING_RELAY_URIS } from '../src/reading-relay-probe.js';
+import { DOCUMENT_WIDGET_URI, LEGACY_DOCUMENT_WIDGET_URIS } from '../src/document-widget.js';
+import { FILE_SAVE_WIDGET_URI } from '../src/file-save-widget.js';
 
 async function fixture(t: TestContext) {
   const parent = await realpath(tmpdir());
@@ -73,15 +77,24 @@ for (const mode of ['stdio', 'http'] as const) {
         'ui://webcodex/file-feasibility-0.12.0-preview.11.html',
         'ui://webcodex/file-feasibility-0.13.0-preview.1.html',
         'ui://webcodex/file-feasibility-0.13.0-preview.2.html',
-        'ui://webcodex/file-feasibility-0.14.0-preview.1.html'];
+        'ui://webcodex/file-feasibility-0.14.0-preview.1.html',
+        'ui://webcodex/file-feasibility-0.14.0-preview.2.html',
+        'ui://webcodex/file-feasibility-0.14.0-preview.3.html',
+        'ui://webcodex/file-feasibility-0.14.0-preview.4.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.1.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.2.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.3.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.4.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.5.html',
+        'ui://webcodex/file-feasibility-0.15.0-preview.6.html', 'ui://webcodex/file-feasibility-0.15.0-preview.7.html', 'ui://webcodex/file-feasibility-0.16.0-preview.1.html', 'ui://webcodex/file-feasibility-0.16.0-preview.2.html', 'ui://webcodex/file-feasibility-0.16.0-preview.3.html', 'ui://webcodex/file-feasibility-0.16.0-preview.4.html', 'ui://webcodex/file-feasibility-0.16.0-preview.5.html', 'ui://webcodex/file-feasibility-0.16.0-preview.6.html'];
       assert.deepEqual([...LEGACY_FILE_WIDGET_URIS], expectedLegacy);
       const allowed = [...new Set([FILE_WIDGET_URI, ...expectedLegacy])];
       const listed = await c.client.listResources();
-      assert.deepEqual(listed.resources.map(item => item.uri).sort(), [...allowed].sort());
+      assert.deepEqual(listed.resources.map(item => item.uri).sort(), [...allowed, READING_RELAY_URI, ...LEGACY_READING_RELAY_URIS, DOCUMENT_WIDGET_URI, ...LEGACY_DOCUMENT_WIDGET_URIS, FILE_SAVE_WIDGET_URI].sort());
       assert.equal((await c.client.listResourceTemplates()).resourceTemplates.length, 0, 'Compatibility must not introduce a wildcard resource template.');
 
       const tools = await c.client.listTools();
-      assert.equal(tools.tools.length, 44);
+      assert.equal(tools.tools.length, 65);
       for (const name of ['fs_open_file', 'file_widget_probe']) {
         const metadata = tools.tools.find(tool => tool.name === name)!._meta as any;
         assert.equal(metadata.ui.resourceUri, FILE_WIDGET_URI);

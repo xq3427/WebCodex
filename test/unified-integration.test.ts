@@ -35,7 +35,7 @@ async function fixture(t:TestContext,format:'json'|'toml'){
   return{base,root,configPath,raw,config:await loadConfig(configPath)};
 }
 async function exercise(client:Client,f:Awaited<ReturnType<typeof fixture>>){
-  const tools=await client.listTools();assert.equal(tools.tools.length,44);
+  const tools=await client.listTools();assert.equal(tools.tools.length,65);
   for(const tool of tools.tools)if(!tool.annotations?.readOnlyHint)assert.ok(tool.inputSchema.required?.includes('expected_device_id'),tool.name);
   const call=(name:string,args:Record<string,unknown>={})=>client.callTool({name,arguments:args});
   const status:any=(await call('system_status')).structuredContent;

@@ -146,10 +146,11 @@ test('batch path and byte budgets include move destinations, original backups an
   await fs.writeFile(path.join(root, 'source.txt'), '12345');
   config.fileBatches = { maxFiles: 1, maxTotalBytes: 100 };
   await assert.rejects(batches.preview({ workspace_id: 'default', changes: [{ op: 'move', path: 'source.txt', to: 'dest.txt', expected_sha256: sha('12345') }] }), errorCode('BATCH_TOO_LARGE'));
-  config.fileBatches = { maxFiles: 2, maxTotalBytes: 9 };
+  config.fileBatches = { maxFiles: 2, maxTotalBytes: 9, binaryMaxTotalBytes: 9 };
   await assert.rejects(batches.preview({ workspace_id: 'default', changes: [write('source.txt', '67890', '12345')] }), errorCode('BATCH_TOO_LARGE'));
   await assert.rejects(batches.preview({ workspace_id: 'default', changes: [{ op: 'move', path: 'source.txt', to: 'dest.txt', expected_sha256: sha('12345') }] }), errorCode('BATCH_TOO_LARGE'));
   config.fileBatches.maxTotalBytes = 10;
+  config.fileBatches.binaryMaxTotalBytes = 10;
   assert.equal((await batches.preview({ workspace_id: 'default', changes: [{ op: 'move', path: 'source.txt', to: 'dest.txt', expected_sha256: sha('12345') }] })).total_bytes, 10);
 });
 

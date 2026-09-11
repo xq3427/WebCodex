@@ -5,6 +5,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { AppError } from './errors.js';
 import { initializeIdentity } from './identity.js';
 import type { ServiceContext } from './types.js';
+import { FILE_ROUTES } from './file-routing.js';
 
 const DEFAULT_LIMIT = 4 * 1024 * 1024;
 const MAX_LIMIT = 7 * 1024 * 1024;
@@ -141,8 +142,8 @@ export class FileTransferService {
         snapshot_uri: uri, uri_scope: 'embedded_snapshot_only' as const,
         model_usage: 'Use display_name/name as the human-readable file label. snapshot_uri identifies the already embedded snapshot; it is not a download link or a resources/read endpoint. MIME is a format hint, not proof of validity or host capabilities. content_processing:none means only that this server preserved the original bytes without conversion; it does not mean the host cannot parse or preview the file. Use the original native content if the host exposes it. If only metadata or a file card is accessible, do not claim to have read the file contents. Do not automatically substitute text extraction, OCR, rendering, media conversion or archive extraction for an original-file request.',
         ...(!signature ? { next_step: {
-          when: 'Use ChatGPT native attachments if original contents cannot be inspected. Only if the user explicitly asks to diagnose the retained component, try this experimental route. Its success still requires checking current-conversation attachment and actual file access; do not infer host failure from server-only processing metadata.',
-          tool: 'fs_open_file' as const,
+          when: mimeType === 'application/pdf' ? 'For a PDF text-analysis request, follow this reading route. '+FILE_ROUTES.pdf : FILE_ROUTES.diagnostic+' This format has no built-in document text reader. A transfer receipt does not prove actual file access.',
+          tool: mimeType === 'application/pdf' ? 'document_open' as const : 'fs_open_file' as const,
           arguments: { workspace_id: input.workspace_id, path: relative, expected_device_id: identity.deviceId },
         } } : {}),
       };

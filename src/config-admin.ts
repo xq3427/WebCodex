@@ -14,7 +14,7 @@ import { workspaceDefaults, type WorkspaceInput } from './workspace-config.js';
 import { publicWorkspaceExecution } from './execution-profiles.js';
 import { workspaceHealth } from './workspace-health.js';
 
-type RawConfig = Record<string, unknown> & {
+export type RawConfig = Record<string, unknown> & {
   version: 1 | 2;
   device?: { id: string; name: string };
   workspaces: WorkspaceInput[];
@@ -41,6 +41,7 @@ export function publicConfig(config: AppConfig) {
     workspaces: config.workspaces.map(w => ({ workspace_id: w.id, ...(w.uid ? { uid: w.uid } : {}), name: w.name, root: w.root, read_only: w.readOnly, enabled: w.enabled !== false, on_unavailable: w.onUnavailable ?? 'error', ...workspaceHealth(config,w), execution: publicWorkspaceExecution(config,w.id), ...(w.worktree ? {worktree:w.worktree} : {}) })),
     execution: {
       mode: config.execution.mode,
+      command_policy: config.execution.commandPolicy ?? 'allowlist',
       profiles: Object.keys(config.execution.profiles ?? {}).sort(),
       configured_environment_names:Object.keys(config.execution.env??{}).sort(),
       executables: Object.entries(config.execution.allowedExecutables).map(([alias, value]) => {
@@ -70,6 +71,8 @@ export function publicConfig(config: AppConfig) {
     tasks:config.tasks,
     project_context:config.projectContext,
     file_batches:config.fileBatches??{maxFiles:20,maxTotalBytes:4194304},
+    binary_inputs:config.binaryInputs??{chunkMaxBytes:12288,maxSessions:4,maxCacheBytes:1048576,ttlMs:900000},
+    file_imports:config.fileImports??{maxAttempts:3,downloadTimeoutMs:60000},
     codex_sessions: { enabled: config.codexSessions.enabled, home: config.codexSessions.home, ...(config.codexSessions.maxWindowsPerRequest !== undefined ? { max_windows_per_request: config.codexSessions.maxWindowsPerRequest } : {}), ...(config.codexSessions.maxRecordBytes !== undefined ? { max_record_bytes: config.codexSessions.maxRecordBytes } : {}) },
   };
 }
@@ -108,6 +111,36 @@ export async function editConfig(configPath: string, edit: (raw: RawConfig, curr
   return editConfigLocked(configPath, edit, expectedSha256);
 }
 
+/** Internal local editor input. Raw data includes secrets and must never be sent to a browser or log. */
+export async function readConfigDocument(configPath: string) {
+  const fullPath = path.resolve(configPath);
+  const format = configFormatForPath(fullPath);
+  const source = await snapshot(fullPath);
+  const originalText = source.bytes.toString('utf8');
+  return { fullPath, format, originalText, revision: source.sha256, raw: parseConfigText(originalText, format) as RawConfig };
+}
+
+/** A repair view does not activate features or read Codex state; final writes still fully validate. */
+export async function validatePanelConfigBaseline(raw: RawConfig, fullPath: string) {
+  const baseline = structuredClone(raw);
+  if (baseline.codexSessions && typeof baseline.codexSessions === 'object' && !Array.isArray(baseline.codexSessions)) baseline.codexSessions.enabled = false;
+  if (baseline.tunnel && typeof baseline.tunnel === 'object' && !Array.isArray(baseline.tunnel) && !isPublicProxyUrl((baseline.tunnel as Record<string,unknown>).proxyUrl)) (baseline.tunnel as Record<string,unknown>).proxyUrl = '';
+  return validateConfig(baseline, fullPath, { workspaceDiagnostics: true });
+}
+
+/** Only plain HTTP(S) proxy origins may appear in local UI. Credentials and signed URLs are private. */
+export function isPublicProxyUrl(value: unknown): value is string {
+  if (value === '' || value === undefined) return true;
+  if (typeof value !== 'string' || /[\x00-\x20\x7f]/.test(value)) return false;
+  try { const url = new URL(value); return ['http:','https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/'; }
+  catch { return false; }
+}
+
+/** Only the panel allowlist may call this path, to repair unavailable workspaces or Codex home. */
+export async function editPanelConfig(configPath: string, edit: (raw: RawConfig, current: AppConfig) => void | Promise<void>, expectedSha256: string) {
+  return editConfigLocked(configPath, edit, expectedSha256, false, undefined, undefined, true);
+}
+
 /** Materialize only the explicitly selected entry; pin defaults before disabling or moving its root. */
 async function editableWorkspace(raw: RawConfig, fullPath: string, id: string): Promise<Exclude<WorkspaceInput, string>> {
   if (!raw || !Array.isArray(raw.workspaces)) throw new AppError('CONFIG_ERROR', 'Configuration validation failed.');
@@ -130,7 +163,7 @@ async function editableWorkspace(raw: RawConfig, fullPath: string, id: string): 
   return matches[0].entry;
 }
 
-async function editConfigLocked(configPath: string, edit: (raw: RawConfig, current: AppConfig) => void | Promise<void>, expectedSha256?: string, disableCodexSessionsOnly = false, repairWorkspace?: { id: string; root: string; readOnly?: boolean; newIdentity?: boolean; worktree?:WorktreeAuthorization }, toggleWorkspace?: { id: string; enabled: boolean }) {
+async function editConfigLocked(configPath: string, edit: (raw: RawConfig, current: AppConfig) => void | Promise<void>, expectedSha256?: string, disableCodexSessionsOnly = false, repairWorkspace?: { id: string; root: string; readOnly?: boolean; newIdentity?: boolean; worktree?:WorktreeAuthorization }, toggleWorkspace?: { id: string; enabled: boolean }, panelRepair = false) {
   const fullPath = path.resolve(configPath);
   const format = configFormatForPath(fullPath);
   await noLinks(fullPath);
@@ -168,7 +201,7 @@ async function editConfigLocked(configPath: string, edit: (raw: RawConfig, curre
       if(repairWorkspace.worktree) matched.worktree=repairWorkspace.worktree;
       else delete matched.worktree;
     }
-    const current = await validateConfig(raw, await realpath(fullPath));
+    const current = panelRepair ? await validatePanelConfigBaseline(raw, await realpath(fullPath)) : await validateConfig(raw, await realpath(fullPath));
     if (repairWorkspace && raw.version === 2) {
       let oldCanonical: string | undefined;
       try {

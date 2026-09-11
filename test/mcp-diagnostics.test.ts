@@ -27,7 +27,7 @@ test('real stdio records discovery, SDK schema rejection, device rejection and s
   transport.stderr?.on('data',data=>{stderr+=String(data);});
   try {
     await client.connect(transport);
-    const tools=await client.listTools();assert.equal(tools.tools.length,44);
+    const tools=await client.listTools();assert.equal(tools.tools.length,65);
     assert.match(client.getInstructions()?.slice(0,512)??'',/SVG.*fs_write/s);
     const status:any=(await client.callTool({name:'system_status'})).structuredContent;
     assert.equal(status.data.version,VERSION);assert.equal(status.data.capabilities.command_execution.enabled,false);
@@ -109,10 +109,30 @@ test('disabled or failed diagnostics never turn a successful protocol response i
   await transport.send({jsonrpc:'2.0',id:1,result:{tools:[]}});assert.equal(sent,1);await transport.close();
 });
 
-test('server guidance starts with the authorized generated-text saving workflow',()=>{
+test('server guidance starts with the authorized text and binary saving workflow',()=>{
   const first=SERVER_INSTRUCTIONS.slice(0,512);
-  for(const tool of ['system_status','workspace_list','fs_write','fs_mkdir','fs_read'])assert.ok(first.includes(tool));
-  assert.match(first,/SVG/);assert.ok(SERVER_INSTRUCTIONS.length<5500);
+  for(const tool of ['system_status','workspace_list','fs_copy','fs_write','fs_mkdir','fs_read','fs_save_file','fs_save_file_status','fs_stat'])assert.ok(first.includes(tool));
+  assert.match(first,/SVG/);assert.match(first,/actual host file reference and source size\/SHA-256/);
+  assert.match(first,/Never use sandbox paths as file IDs/);assert.match(first,/expected_sha256=null is create-only/);
+  assert.ok(SERVER_INSTRUCTIONS.length<5500);
+});
+
+test('execution diagnostics retain actionable fixed codes without arguments or arbitrary failure text',async()=>{
+  const db=new DatabaseSync(':memory:');
+  const config={...defaultUnifiedConfig(tmpdir(),path.join(tmpdir(),'execution-diagnostics.json')),configPath:path.join(tmpdir(),'execution-diagnostics.json')};
+  const diagnostics=new McpDiagnostics(db,config,'synthetic');diagnostics.registerTool('exec_start');
+  const inner:Transport={async start(){},async send(){},async close(){}};
+  const transport=observeMcpTransport(inner,diagnostics);await transport.start();
+  try {
+    const codes=['INVALID_EXECUTABLE','EXECUTABLE_NOT_FOUND','EXECUTION_PROFILE_CHANGED','CONCURRENCY_LIMIT','private-unknown-error'];
+    for(const [id,code] of codes.entries()){
+      inner.onmessage?.({jsonrpc:'2.0',id,method:'tools/call',params:{name:'exec_start',arguments:{args:['private-command-argument']}}});
+      await transport.send({jsonrpc:'2.0',id,result:{isError:true,structuredContent:{error:{code,message:'private-failure-text'}}}});
+    }
+    const rows=db.prepare('SELECT * FROM mcp_diagnostics ORDER BY id').all();
+    assert.deepEqual(rows.map(row=>row.error_code),[...codes.slice(0,4),'OTHER_TOOL_ERROR']);
+    assert.doesNotMatch(JSON.stringify(rows),/private-command-argument|private-failure-text|private-unknown-error/);
+  }finally{await transport.close();db.close();}
 });
 
 test('omitted arguments normalization is independent of diagnostics and preserves the original request and transport metadata',async()=>{

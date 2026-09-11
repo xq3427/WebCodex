@@ -163,7 +163,7 @@ test('CLI reports observed startup connectivity without relaying client secrets 
     await writeFile(f.optionsPath,JSON.stringify({...f.options,runHealthy:true}));
     const cli=fileURLToPath(new URL('../src/cli.js',import.meta.url));
     const result=await new Promise<{code:number|null;out:string;err:string}>((resolve,reject)=>{
-      const child=spawn(process.execPath,[cli,'connect','--config',f.config.configPath],{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
+      const child=spawn(process.execPath,[cli,'connect','--no-panel','--config',f.config.configPath],{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
       let out='',err='';const timer=setTimeout(()=>{child.kill();reject(new Error('Synthetic CLI startup exceeded its deadline.'));},15000);
       child.stdout.on('data',data=>{out+=data.toString();});child.stderr.on('data',data=>{err+=data.toString();});
       child.once('error',error=>{clearTimeout(timer);reject(error);});child.once('close',code=>{clearTimeout(timer);resolve({code,out,err});});
@@ -178,8 +178,116 @@ test('CLI reports observed startup connectivity without relaying client secrets 
     assert.match(result.err,/Tunnel stopped/);
     assert.equal((result.err.match(/Connected;/g)??[]).length,1);
     assert.equal((result.out+result.err).includes(fakeKey),false);
+    assert.equal((result.out+result.err).includes('#token='),false);
     await assert.rejects(access(path.join(f.config.stateDir,'tunnel','launcher.lock')),{code:'ENOENT'});
   } finally {await f.clean();}
+});
+
+test('default connect prints one private local panel link and keeps management available after its tunnel exits', async () => {
+  const f = await fixture();
+  const portServer = createServer();
+  await new Promise<void>((resolve, reject) => { portServer.once('error', reject); portServer.listen(0, '127.0.0.1', resolve); });
+  const port = (portServer.address() as { port: number }).port;
+  await new Promise<void>(resolve => portServer.close(() => resolve()));
+  const raw = { ...defaultUnifiedConfig(f.config.workspaces[0].root, f.config.configPath), stateDir: f.config.stateDir,
+    toolsDir: f.config.toolsDir, nodePath: process.execPath, tunnel: f.config.tunnel, localPanel: { port } };
+  const source = JSON.stringify(raw);
+  await writeFile(f.config.configPath, source);
+  await writeFile(f.optionsPath, JSON.stringify({ ...f.options, runHealthy: true }));
+  const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+  // Deliver a normal application SIGINT on Windows as well as POSIX. This process
+  // and its copied native tunnel client use only the isolated synthetic fixture.
+  const bootstrap = "import { pathToFileURL } from 'node:url'; const target=process.argv.splice(1,1)[0]; process.stdin.once('data',()=>{process.stdin.pause();process.emit('SIGINT');}); await import(pathToFileURL(target).href);";
+  const child = spawn(process.execPath, ['--input-type=module', '-e', bootstrap, '--', cli, 'connect', '--config', f.config.configPath],
+    { windowsHide: true, shell: false, stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '', stderr = '', exited = false, forceStop: ReturnType<typeof setTimeout> | undefined;
+  child.stdout.on('data', (data: Buffer) => { stdout += data.toString('utf8'); });
+  child.stderr.on('data', (data: Buffer) => { stderr += data.toString('utf8'); });
+  const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (code, signal) => { exited = true; resolve({ code, signal }); });
+  });
+  // Never include captured output or URLs in assertion messages: the new link
+  // deliberately contains a live, temporary administrative credential.
+  const waitUntil = async (ready: () => boolean, message: string) => {
+    const deadline = Date.now() + 15000;
+    while (!ready() && !exited && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+    assert.ok(ready(), message);
+  };
+  try {
+    const linkPattern = /^http:\/\/127\.0\.0\.1:\d+\/#token=[A-Za-z0-9_-]{43}\r?$/m;
+    await waitUntil(() => linkPattern.test(stderr), 'connect should emit a standalone authenticated local URL.');
+    const link = new URL(stderr.match(linkPattern)![0].trim());
+    assert.equal(link.port, String(port));
+    const token = new URLSearchParams(link.hash.slice(1)).get('token')!;
+    const request = (route: string) => fetch(link.origin + route, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(3000) });
+    assert.equal((await fetch(link.origin + '/api/config', { signal: AbortSignal.timeout(3000) })).status, 401);
+    const configResponse = await request('/api/config'); assert.equal(configResponse.status, 200);
+    const visibleConfig = await configResponse.text();
+    const config = JSON.parse(visibleConfig);
+    assert.equal(config.secrets.tunnelApiKey, true);
+    assert.equal(visibleConfig.includes(fakeKey), false);
+    assert.equal(visibleConfig.includes(token), false);
+    let status = await (await request('/api/runtime')).json() as { state: string; managed: boolean; connected: boolean };
+    assert.ok(status.managed || status.state === 'stopped', 'The panel must report ownership or the completed tunnel truthfully.');
+    const deadline = Date.now() + 15000;
+    while (status.state !== 'stopped' && !exited && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 40));
+      status = await (await request('/api/runtime')).json() as typeof status;
+    }
+    assert.equal(status.state, 'stopped'); assert.equal(status.managed, false); assert.equal(status.connected, false);
+    assert.equal(exited, false, 'Management should remain available when the tunnel has stopped.');
+    assert.equal((await request('/api/config')).status, 200);
+    for (const phrase of ['Checking local configuration', 'Checking tunnel client compatibility', 'Connected; local MCP is ready',
+      'No successful ChatGPT tool call has been observed yet', 'Keep this terminal open', 'Tunnel stopped']) {
+      assert.ok(stderr.includes(phrase), 'Expected safe startup progress: ' + phrase);
+    }
+    assert.equal((stderr.match(/^http:\/\/127\.0\.0\.1:\d+\/#token=[A-Za-z0-9_-]{43}\r?$/gm) ?? []).length, 1);
+    assert.equal((stderr.match(/Connected;/g) ?? []).length, 1);
+    assert.equal(stdout.includes('#token='), false);
+    assert.equal((stdout + stderr).includes(fakeKey), false);
+    await assert.rejects(access(path.join(f.config.stateDir, 'tunnel', 'launcher.lock')), { code: 'ENOENT' });
+    child.stdin.end('stop');
+    forceStop = setTimeout(() => child.kill(), 5000);
+    const result = await closed;
+    assert.equal(result.code, 0); assert.equal(result.signal, null);
+    assert.equal(await readFile(f.config.configPath, 'utf8'), source);
+    await assert.rejects(access(path.join(f.config.stateDir, 'tunnel', 'launcher.lock')), { code: 'ENOENT' });
+    await assert.rejects(access(path.join(f.config.stateDir, 'state.sqlite')), { code: 'ENOENT' });
+  } finally {
+    if (forceStop) clearTimeout(forceStop);
+    if (!exited) {
+      child.stdin.end('stop'); const timeout = setTimeout(() => child.kill(), 5000);
+      try { await closed; } finally { clearTimeout(timeout); }
+    }
+    await f.clean();
+  }
+});
+
+test('connect doctor-only exits without starting a panel or emitting a private launch link', async () => {
+  const f = await fixture();
+  try {
+    const raw = { ...defaultUnifiedConfig(f.config.workspaces[0].root, f.config.configPath), stateDir: f.config.stateDir,
+      toolsDir: f.config.toolsDir, nodePath: process.execPath, tunnel: f.config.tunnel };
+    const source = JSON.stringify(raw); await writeFile(f.config.configPath, source);
+    const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+    const result = await new Promise<{ code: number | null; out: string; err: string }>((resolve, reject) => {
+      const child = spawn(process.execPath, [cli, 'connect', '--doctor-only', '--config', f.config.configPath],
+        { windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '', err = '';
+      const timer = setTimeout(() => { child.kill(); reject(new Error('Synthetic doctor-only CLI exceeded its deadline.')); }, 15000);
+      child.stdout.on('data', data => { out += data.toString(); }); child.stderr.on('data', data => { err += data.toString(); });
+      child.once('error', error => { clearTimeout(timer); reject(error); });
+      child.once('close', code => { clearTimeout(timer); resolve({ code, out, err }); });
+    });
+    assert.equal(result.code, 0);
+    assert.equal(JSON.parse(result.out).ok, true);
+    assert.equal((result.out + result.err).includes('#token='), false);
+    assert.equal((result.out + result.err).includes(fakeKey), false);
+    assert.deepEqual((await f.records()).map(record => record.verb), ['doctor']);
+    assert.equal(await readFile(f.config.configPath, 'utf8'), source);
+    await assert.rejects(access(path.join(f.config.stateDir, 'tunnel', 'launcher.lock')), { code: 'ENOENT' });
+  } finally { await f.clean(); }
 });
 
 test('installation metadata rejects wrong origin, version, hash and paths before a client starts', async () => {

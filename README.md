@@ -1,41 +1,16 @@
 # WebCodex MCP
 
-[English](README.en.md) · [GitHub](https://github.com/xq3427/WebCodex) · [文档目录](docs/README.md) · [配置示例](examples/config.example.toml) · [贡献指南](CONTRIBUTING.md)
+[English](README.en.md) · [快速开始](#快速开始) · [文档目录](docs/README.md) · [配置示例](examples/config.example.toml) · [贡献指南](CONTRIBUTING.md)
 
-让 ChatGPT 网页通过 MCP 操作你授权的本地项目：读取和修改代码、查看 Git 变更、运行配置允许的程序，并读取本地 Codex 会话来接续工作。
+让 ChatGPT 网页通过 MCP 操作你授权的本地项目：读取和修改代码、查看 Git 变更、运行配置允许的程序，并读取本地 Codex 可见历史来接续工作。
 
-适合在 Codex 暂时不可用或额度用完时应急。WebCodex 提供本地工具，由 ChatGPT 理解任务和调用工具；它不调用 Codex 模型，也不恢复或绕过任何产品的额度。本项目由社区独立开发，与 OpenAI 无隶属关系。
+WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.14.0-preview.2，预览版。** 本地功能有自动化测试，ChatGPT 账户权限、工具发现和宿主行为需要在实际连接中验证。原文件自动上传功能已暂停，不能把 PDF 文件卡片或上传回执视为 GPT 已读到正文。
-
-## 能做什么
-
-| 能力 | 说明 |
-| --- | --- |
-| 多设备、多工作区 | 每台设备独立身份；目录可分别命名、设置只读、启用或停用，支持离线目录策略 |
-| 文本文件操作 | 列目录、搜索、按行或分块读取、批量读取、创建目录、写入和应用补丁 |
-| 变更保护 | 写前 SHA-256 冲突检查、操作幂等键、服务修改记录、备份和有条件恢复 |
-| 批量变更 | 多文件预检、应用和状态查询；失败时保留状态并尝试有条件回滚 |
-| Git 与项目指导 | 查看状态和差异、读取适用的 AGENTS.md；显式登记 Git linked worktree |
-| 程序执行 | 默认关闭；开启后运行本机配置允许的程序，查询输出、等待、取消、通过管道提供输入 |
-| Codex 接续 | 默认关闭；只读列出、搜索和续读本地可见会话，结合当前项目生成交接上下文 |
-| 任务与检查点 | 保存独立任务、不可变进度修订、文件观察及作业记录，导出交接笔记 |
-| 接入与诊断 | stdio、回环 Streamable HTTP、OpenAI 官方 Secure MCP Tunnel，以及可选本地面板 |
-
-当前注册 **44 个工具，其中 42 个常规工具、2 个组件私有工具**。工具参数以[生成的 schema](docs/tools.json)为准；数量不代表 ChatGPT 一定将全部工具放入当前对话。
-
-## 当前限制
-
-- **没有实现纯 MCP 自动把 PDF/Office 原文件变成 ChatGPT 原生可读附件。** 原字节读取与组件诊断仍保留，但不属于已完成的文档分析能力。详见[原文件说明](docs/original-files.md)。
-- 没有完整 Codex 客户端、模型调用、隐藏上下文恢复、自动任务执行器、PTY 或持续 shell。历史记录可能存在省略，必须检查分页和扫描完整性。
-- 程序执行采用 `trusted-host`：拥有本机用户权限，**不是操作系统沙箱**。允许解释器或包管理器后，程序可能访问工作区之外的文件和网络。
-- 批量变更不是跨文件原子事务；文件恢复不撤销外部程序、网络或数据库的副作用。
-- 没有专用 Git 提交/推送工具，也没有把 ChatGPT 生成的二进制附件自动保存到本机的工具。
-- 本版在 Windows 上做本地验证，并配置了 Linux/macOS CI。跨平台结果以[实际 CI 运行](https://github.com/xq3427/WebCodex/actions/workflows/ci.yml)为准，验证范围见[测试说明](docs/testing.md)。
+**当前版本：0.16.0-preview.7，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-需要 **Node.js ≥ 22.16、Git、ripgrep（rg）**。克隆源码并安装：
+需要 **Node.js ≥ 22.16、Git、ripgrep（rg）**。项目尚未发布 npm 包，请从源码构建：
 
 ```text
 git clone https://github.com/xq3427/WebCodex.git
@@ -47,137 +22,145 @@ node dist/src/cli.js config validate
 node dist/src/cli.js doctor
 ```
 
-PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd` 代替 `npm`。本项目暂未发布 npm 包，请从源码构建。
+PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。已有配置时跳过 `init`；初始化不会覆盖已有配置。
 
-`init` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。已有配置时跳过 `init`，它不会覆盖现有配置。
+`init` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。接下来通过[本地控制中心](#统一配置与本地控制中心)编辑配置，按[接入 ChatGPT](#接入-chatgpt-网页)配置隧道并启动连接。
 
-所有可修改设置集中在选中的一份 TOML 或 JSON 文件中，包括 API key、隧道、设备名、工作区、Codex home、程序路径和限额。可显式选择其他位置：
+## 统一配置与本地控制中心
+
+所有可修改设置都保存在选中的一份 TOML 或 JSON 文件中，包括设备、工作区、隧道 API key、Codex home、程序路径、权限和限额；不同配置文件不会合并。相对路径以**配置文件所在目录**为基准。
+
+仅打开配置页面：
+
+```text
+node dist/src/cli.js panel
+```
+
+终端会输出带临时凭据的完整本机链接。页面支持工作区和权限表单、密钥只写更新、配置校验，以及面板管理服务的启动、停止和保存并重启。`panel` 本身不会立即启动 MCP 连接。链接需保密，终端需保持打开。
+
+也可显式选择配置位置，后续命令使用同一个 `--config`：
 
 ```text
 node dist/src/cli.js init --workspace . --config /absolute/private/config.toml
-node dist/src/cli.js doctor --config /absolute/private/config.toml
+node dist/src/cli.js panel --config /absolute/private/config.toml
 ```
 
-Windows 可以使用 `D:/WebCodex/config.toml`。后续命令使用同一个 `--config`。相对路径以**配置文件所在目录**为基准；配置变更需要重启对应服务。
+Windows 可使用 `D:/WebCodex/config.toml`。[TOML 模板](examples/config.example.toml)和 [JSON 模板](examples/config.example.json)中的身份与密钥故意留空；先用 `init` 生成本机配置，再参考模板修改，不直接运行空身份模板。
 
-[JSON 模板](examples/config.example.json)和 [TOML 模板](examples/config.example.toml)中的身份与密钥故意留空。先用 `init` 生成本机配置，再参考模板修改；不要直接把空身份模板当作有效配置。
+配置变更需要重启对应服务。页面可以管理由它启动的连接；旧版、`connect --no-panel` 或独立 `serve` 启动的服务，需要先在原终端正常停止，再从页面启动。页面不会强行接管外部进程。详见[配置指南](docs/local-configuration.md)和[控制中心指南](docs/local-panel.md)。
 
 ## 接入 ChatGPT 网页
 
-推荐通过 **OpenAI 官方 Secure MCP Tunnel** 连接本机 stdio 服务。此模式不需要自建公网服务器、域名、Cloudflare、浏览器扩展或本项目的 Actions 服务，但需要你的 OpenAI 账户具备对应隧道和 ChatGPT 连接权限。
+推荐通过 **OpenAI 官方 Secure MCP Tunnel** 连接本机 stdio 服务。此模式无需自建公网服务器、域名、Cloudflare、浏览器扩展或 Actions 服务；账户仍须具备相应 Platform 隧道和 ChatGPT 连接权限。
 
 1. 在 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 创建或选择隧道，并准备具备运行权限的 API key。
-2. 安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。Windows 可运行 `./scripts/install-tunnel.ps1`；Linux/macOS 需下载匹配平台的程序并配置路径和 SHA-256。
-3. 在本机配置的 `tunnel` 中填写 `enabled`、`id` 和 `apiKey`，保留 `server.transport = "stdio"`。
-4. 运行本地检查及连接：
+2. 安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。Windows 可运行 `./scripts/install-tunnel.ps1`；Linux/macOS 下载匹配平台的程序并配置路径和 SHA-256。
+3. 在所选配置的 `tunnel` 中填写 `enabled`、`id` 和 `apiKey`，保留 `server.transport = "stdio"`。
+4. 检查并启动连接：
 
 ```text
 node dist/src/cli.js connect --doctor-only
 node dist/src/cli.js connect
 ```
 
-5. 在 ChatGPT 的应用/开发者模式连接入口选择对应 Tunnel，在新对话启用 WebCodex。具体账户条件和操作见[接入指南](docs/chatgpt-setup.md)。
+5. 在 ChatGPT 的应用/开发者连接入口选择对应 Tunnel，在对话中启用 WebCodex。具体操作、账户条件和升级步骤见[接入指南](docs/chatgpt-setup.md)。
 
-`connect` 会保持运行，这是正常行为。另开终端用 `node dist/src/cli.js tunnel status` 检查状态。不要同时启动两个共用同一 state 的服务。
+使用 v2 配置时，`connect` 同时启动连接与本地控制中心，并打印页面链接。`stdio` 使用官方隧道，`http` 启动回环 HTTP 服务；本机 HTTP 或页面可访问不代表 ChatGPT 已连接。面板端口冲突时会临时选择空闲回环端口，不修改配置。
 
-连接后可以发送：
+`connect --no-panel` 保留无页面连接方式；`connect --doctor-only` 只检查。连接应持续运行，不要启动另一份共用相同 state 的服务。可另开终端运行 `node dist/src/cli.js tunnel status` 查看状态。
 
-> 使用 WebCodex，先调用 system_status 和 workspace_list，确认设备与项目。读取 README.md，告诉我项目用途。然后在我指定的可写工作区新建一个尚不存在的 webcodex-smoke.txt，内容为“WebCodex 连接测试”，并实际读回验证。不要覆盖已有文件；出现错误时报告实际工具错误。
+连接后可发送：
 
-MCP 协议连通不等于业务操作成功：需要核对工具结果和磁盘读回。WebCodex 不收取软件许可费用；ChatGPT 订阅、平台权限和相关服务计费由服务提供方决定。
+> 使用 WebCodex，先调用 system_status 和 workspace_list，确认设备与项目。读取 README.md，说明项目用途。然后在指定可写工作区新建一个尚不存在的 webcodex-smoke.txt，内容为“WebCodex 连接测试”，并实际读回验证。不要覆盖已有文件；出错时报告实际工具错误。
 
-## 多目录与多设备
+## 文件操作：选择正确入口
 
-每个工作区对象配置一个 `root`。需要不同名称和权限时，分别添加对象；不能在一个 `root` 字段后直接串联多个路径。以下是需要合入现有 JSON 配置的片段：
+| 文件与任务 | 使用方式 | 完成依据 |
+| --- | --- | --- |
+| 本机已有文件 | `fs_stat` 取得源哈希，调用 `fs_copy`；支持跨工作区和只读源，无需上传或命令执行 | 复制回执与目标 `fs_stat` 大小、哈希一致 |
+| Markdown、SVG、HTML、代码等文本 | `fs_write` 或 `fs_apply_patch` | 写入结果和读回核对 |
+| ChatGPT 生成的 PNG、PPTX、PDF、ZIP 等原文件 | `fs_save_file` 提交当前产物真实文件引用及原件大小/哈希；用 `fs_save_file_status` 查询 | `saved`、`verified=true`，再与 `fs_stat` 核对 |
+| 本地 PDF 正文 | `document_open` / `document_read` 原型 | 只有 `ready` 和实际返回的页正文可作为回答依据；真实宿主仍待复验 |
 
-```json
-{
-  "workspaces": [
-    {
-      "id": "code",
-      "name": "代码项目",
-      "root": "${userHome}/Projects/demo",
-      "readOnly": false
-    },
-    {
-      "id": "papers",
-      "name": "论文资料",
-      "root": "${userHome}/Documents/papers",
-      "readOnly": true,
-      "onUnavailable": "skip"
-    }
-  ]
-}
-```
+自动回存不要求用户填写 URL、逐个选择文件或安装扩展。只有文件 ID 时，组件调用 `getFileDownloadUrl` 并私下提交临时地址；已有可用官方文件对象时可直接下载。**真实 ID 必须属于当前生成产物且获宿主授权**，不能使用文件名、`sandbox:/mnt/data/...` 或之前上传的原附件 ID 替代。
 
-新条目省略 `uid` 时会自动生成；已存在条目的 `id/uid` 应保留。也可追加路径字符串，例如 `"${userHome}/Projects/another"`，其权限默认为可写。Windows JSON 建议使用正斜杠 `D:/Projects/demo`；反斜杠需要写成 `D:\\Projects\\demo`。路径必须是本机实际目录。
+在 Code Interpreter 中从同一份不再修改的原件计算 `size_bytes/content_sha256`。已有目标需先 `fs_stat`，把**目标当前哈希**放入 `expected_sha256`；`null` 只允许新建。组件应保持打开，按状态返回的 `retry_after_ms`、`polls_remaining` 和 `can_poll` 查询；pending 不代表保存完成，failed/unknown 不换键重放。
 
-CLI 可添加目录而无需手工编辑：
+服务按 `limits.binaryWriteMaxBytes` 限制原文件，默认 32 MiB、最高可配置 128 MiB，不使用 Base64 分块缓存。旧 `fs_import_file` 和 Base64 工具保留兼容；Base64 仅用于完整字节可可靠交接的小载荷，发生截断就停止。不能缩图、重编码或重新生成来代替原文件。详见[本机复制与恢复](docs/file-workflow.md)和[自动原件回存](docs/file-writeback.md)。
+
+## 其他能力与边界
+
+当前注册 **65 个工具：55 个常规工具、10 个组件私有工具**。准确参数与当前版本入口见[工具 schema](docs/tools.json)和[生成的验收说明](docs/current-acceptance.md)；注册数量不保证当前 ChatGPT 对话能调用全部工具。
+
+- 多工作区支持独立名称、只读权限及离线目录策略；文件修改保留设备校验、SHA-256 冲突检查、幂等键、备份和有条件恢复。
+- 支持 Git 状态和差异、项目 AGENTS.md、显式登记的 linked worktree，以及独立任务、检查点和交接笔记。
+- 命令执行默认关闭。通过页面开启后可运行本机程序，并查看输出、等待、取消或输入 stdin；旧配置可保留程序白名单策略。`trusted-host` 拥有本机用户权限，**不是操作系统沙箱**。
+- Codex 历史访问默认关闭；开启后仅只读访问本地可见会话，不调用模型、不读取认证文件、不恢复隐藏推理，也不自动重放历史命令。
+- 合成正文回传曾在真实 ChatGPT 连接中成功两次；这不证明 PDF 正文原型或原文件回存已通过真实验收。PDF 原型的字体/CMap 修复仍待真实 PDF 复验，不支持扫描件 OCR、图像理解或自动原生附件导入。
+- 没有持续 shell/PTY、自动任务执行器或专用 Git 提交/推送工具。批量修改不是跨文件原子事务，文件恢复不能撤销程序、网络或数据库副作用。
+
+本项目在 Windows 做本地验证，并配置 Windows、Linux、macOS CI。平台结果以[实际 CI 运行](https://github.com/xq3427/WebCodex/actions/workflows/ci.yml)为准，详见[测试边界](docs/testing.md)。WebCodex 使用 MIT 许可证；ChatGPT 订阅、平台权限与相关服务计费由服务提供方决定。
+
+## 多目录、多设备与 Codex 接续
+
+每个工作区对应一个本机 `root`；需要不同名称或权限时分别添加，不能在一个字段中串联多个路径。可通过页面或 CLI 管理：
 
 ```text
 node dist/src/cli.js workspace add --id papers --name Papers --root /absolute/papers --read-only
 node dist/src/cli.js workspace health
 node dist/src/cli.js device rename --name "Office laptop"
-```
-
-每台设备分别运行 `init`，维护独立配置、state 和隧道身份。不要复制另一台设备的完整配置或状态库。连接时核对 `device_id`；所有 v2 写入、执行和取消调用都要求 `expected_device_id`。WebCodex 不自动跨设备转发或同步文件。
-
-## 接续本地 Codex 会话
-
-在本机显式开启只读历史访问：
-
-```text
 node dist/src/cli.js codex enable --home /absolute/codex-home
 node dist/src/cli.js codex status
 ```
 
-Windows 可以将 home 设为 `D:/CodexData/.codex`，不要求位于 C 盘。不传 `--home` 时，命令优先保留已配置目录；首次发现才使用 `CODEX_HOME` 或用户目录下的 `.codex`，结果写入统一配置。
+已有工作区的 `id/uid` 应保留。每台设备分别初始化，维护独立配置、state 和隧道身份，不复制其他设备的真实配置或数据库。v2 修改、执行和取消调用要求 `expected_device_id`，文件不会自动跨设备同步。
 
-重启连接后，告诉 ChatGPT：
+Codex home 可位于任意本机盘符，例如 `D:/CodexData/.codex`。省略 `--home` 时优先保留已配置目录；首次发现才使用 `CODEX_HOME` 或用户目录下的 `.codex`，结果写入统一配置。重启连接后，可要求 ChatGPT 查找项目对应会话、读取必要历史，再检查当前文件和 Git 状态，继续未完成工作。详见[配置](docs/local-configuration.md)、[任务与执行](docs/task-workflow.md)及[应急接续](docs/codex-emergency.md)。
 
-> 使用 WebCodex，查找本地 Codex 中与这个项目对应的会话，读取交接上下文和必要历史，再检查当前工作区文件与 Git 状态，列出未完成工作。不要自动重放历史命令。
+## 项目目录
 
-详见[应急接续指南](docs/codex-emergency.md)。历史工具不读取账号认证文件，不恢复隐藏推理，不修改 Codex 会话。
+| 路径 | 用途 |
+| --- | --- |
+| `src/` | TypeScript 实现：CLI、MCP 工具、工作区策略、文件服务、作业、历史与本地面板 |
+| `src/browser/` | 浏览器 PDF 正文组件及资源加载代码 |
+| `test/` | 合成文件、临时工作区及服务/组件回归测试 |
+| `scripts/` | 构建、测试、工具导出、仓库审计与隧道辅助脚本 |
+| `examples/` | 不含真实身份和密钥的配置模板与示例 |
+| `docs/` | 使用指南、架构、功能边界、生成的 schema 和验收入口 |
+| `.github/` | CI 与 issue/PR 模板 |
+| `dist/`、`node_modules/` | 本机构建和依赖输出，不提交 |
+| `.webcodex/` | 默认本机配置、状态与运行产物，不提交 |
 
-## 可选程序执行
+## 文档与开发
 
-`execution.mode` 默认为 `disabled`，文本读写不依赖它。确需运行项目测试时，可先注册本机程序，再开启执行：
+- 入门：[接入 ChatGPT](docs/chatgpt-setup.md) · [统一配置](docs/local-configuration.md) · [本地控制中心](docs/local-panel.md)
+- 工作流：[文件操作](docs/file-workflow.md) · [自动原件回存](docs/file-writeback.md) · [任务与执行](docs/task-workflow.md) · [Codex 接续](docs/codex-emergency.md)
+- 实现与证据：[架构](docs/architecture.md) · [功能状态](docs/implementation-status.md) · [测试](docs/testing.md) · [协议诊断](docs/protocol-diagnostics.md) · [路线](docs/roadmap.md)
+- 维护：[贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [更新记录](CHANGELOG.md) · [第三方依赖](THIRD_PARTY_NOTICES.md)
+
+完整导航见[文档目录](docs/README.md)。开发检查：
 
 ```text
-node dist/src/cli.js execution preset --preset node
-node dist/src/cli.js execution inspect
-node dist/src/cli.js execution set-mode trusted-host
+npm run check
+npm test
+npm run check:tools
+npm run test:repo
+npm run audit:repo
 ```
 
-重启后，ChatGPT 可通过 `exec_start` 运行允许的别名，用 `exec_wait/exec_poll` 获取输出和退出码。支持 npm、Python、venv、Conda 配置预设，以及工作区独立执行 profile；完整用法见[配置指南](docs/local-configuration.md)和[任务工作流](docs/task-workflow.md)。
+工具或版本修改后，先构建并运行 `npm run export:tools` 更新生成文档，再执行一致性检查。真实配置、密钥、Codex 历史、状态库及未经脱敏的日志和私人验收产物不得提交。
 
 ## 常见问题
 
 | 现象 | 处理 |
 | --- | --- |
-| doctor 报 rg 不可用 | 安装 ripgrep，或在所选配置中设置本机 `rgPath` |
-| SQLite ExperimentalWarning | Node 内置 SQLite 的提示；单独出现不表示服务失败 |
-| `TUNNEL_ALREADY_RUNNING` | 用同一配置查询 `tunnel status`，检查原连接；不要直接删除锁或反复开新连接 |
-| 应用详情有工具，对话却无法调用 | 确认对话启用了正确连接，按 ChatGPT 当前界面更新工具，并用新对话核对版本和实际调用 |
-| 文件写入失败 | 核对设备、工作区权限、相对路径、父目录、当前哈希和错误恢复提示 |
-| PDF 组件出现但不能总结 | 自动原文件正文接入尚未实现；这不是已通过验收的能力 |
-| 修改配置后行为没变 | 等作业结束，在原终端正常停止并重新启动；已有进程不会自动重载 |
-
-## 开发与项目资料
-
-```text
-npm run check
-npm test
-npm run export:tools
-npm run audit:repo
-```
-
-- [架构](docs/architecture.md) / [功能状态](docs/implementation-status.md) / [后续路线](docs/roadmap.md)
-- [文件工作流](docs/file-workflow.md) / [协议诊断](docs/protocol-diagnostics.md) / [可选本地面板](docs/local-panel.md)
-- [测试与验证边界](docs/testing.md) / [安全说明](SECURITY.md) / [贡献指南](CONTRIBUTING.md)
-- [更新记录](CHANGELOG.md) / [第三方依赖](THIRD_PARTY_NOTICES.md)
-
-真实配置、API key、Codex 历史、状态库、作业日志和本机验收记录不得提交。发布或提交 issue 前运行仓库检查，并检查脱敏后的 diff。
+| doctor 找不到 rg | 安装 ripgrep，或在所选配置中设置 `rgPath` |
+| SQLite ExperimentalWarning | Node 内置 SQLite 提示，单独出现不表示服务失败 |
+| `TUNNEL_ALREADY_RUNNING` | 用相同配置检查 `tunnel status`；不删除锁或反复开新连接 |
+| 应用有工具、对话却不能调用 | 确认正确连接已启用，按当前 ChatGPT 界面更新工具，再核对 `system_status` 与实际调用 |
+| 回存停在 pending 或失败 | 查看 `fs_save_file_status` 的阶段、错误码和额度；ID 可见不代表授权或保存成功 |
+| PDF 组件出现但不能总结 | 检查 `document_read`，只有返回 `ready` 和实际正文才可总结 |
+| 改配置后行为没变 | 等作业结束后保存并正常重启对应服务；已有进程不自动重载 |
 
 ## 许可证
 

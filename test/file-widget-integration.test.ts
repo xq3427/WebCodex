@@ -182,7 +182,7 @@ for (const transport of ['stdio', 'http'] as const) {
     const configBefore = await readFile(f.configPath), connection = await connect(f.configPath, transport);
     try {
       const tools = (await connection.client.listTools()).tools;
-      assert.equal(tools.length, 44);
+      assert.equal(tools.length, 65);
       const tool = tools.find(item => item.name === 'file_widget_probe')!;
       assert.ok(tool); assert.equal(tool.annotations?.readOnlyHint, true); assert.equal(tool.annotations?.openWorldHint, false);
       const metadata = tool._meta as any;
@@ -252,13 +252,13 @@ for (const transport of ['stdio', 'http'] as const) {
       assert.equal(open.inputSchema.additionalProperties, false);
       assert.equal(open.annotations?.readOnlyHint, true); assert.equal(open.annotations?.openWorldHint, false);
       assert.equal((open._meta as any).ui.resourceUri, FILE_WIDGET_URI);
-      assert.match(open.description!, /ChatGPT native attachments/);
+      assert.match(open.description!, /PDF text reading use document_open then document_read/);
       assert.match(open.description!, /explicitly requested component experiments/);
       assert.match(open.description!, /Do not automatically route document requests/);
       assert.match(open.description!, /acknowledgment does not prove parsing/);
       assert.match(open.description!, /Never claim a summary from metadata/);
-      assert.match(raw.description!, /ChatGPT native attachments/);
-      assert.match(raw.description!, /Do not treat successful transfer as proof that ChatGPT attached or parsed/);
+      assert.match(raw.description!, /PDF text reading use document_open then document_read/);
+      assert.match(raw.description!, /does not prove readable contents/);
       assert.match(connection.client.getInstructions()!, /content_processing:none describes server-side processing only/);
       const args = { workspace_id: 'default', path: filename, expected_device_id: f.deviceId };
       const result = await connection.client.callTool({ name: 'fs_open_file', arguments: args });

@@ -1,32 +1,16 @@
 # WebCodex MCP
 
-[中文](README.md) · [GitHub](https://github.com/xq3427/WebCodex) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
+[中文](README.md) · [Quick start](#quick-start) · [Documentation](docs/README.md) · [Configuration example](examples/config.example.toml) · [Contributing](CONTRIBUTING.md)
 
-Workspace-scoped local development tools for ChatGPT over MCP. Read and edit code, inspect Git changes, run locally configured programs, and read visible local Codex history to continue a project when Codex is temporarily unavailable.
+Let ChatGPT use MCP to work on authorized local projects: read and edit code, inspect Git changes, run locally configured programs, and read visible local Codex history to continue a project.
 
-WebCodex supplies tools, not a model. It does not call Codex models, restore quotas, or bypass product limits. This is an independent community project, not an official OpenAI product.
+WebCodex supplies local tools; ChatGPT interprets the task and calls them. It does not call Codex models, restore quotas, or bypass product limits. It can help continue project work when Codex is temporarily unavailable. This is an independent community project, not an official OpenAI product.
 
-**Version: 0.14.0-preview.2 — preview.** Automatic original PDF/Office attachment has been deferred. A file card or upload receipt does not prove that ChatGPT can read the document body.
+**Version: 0.16.0-preview.7 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
 
-## Features and limits
+## Quick start
 
-- Independent device identity and multiple named workspaces with read-only and availability policies.
-- Bounded text reads, search, chunking, writes, patches, batch changes, SHA-256 conflict checks, backups and conditional restoration.
-- Git status/diff, project instructions, and explicitly registered linked worktrees.
-- Optional allowlisted native program execution, durable job records, output cursors, cancellation and pipe input.
-- Optional read-only access to visible Codex sessions, search and handoff context.
-- Independent task records, immutable progress revisions and exported handoff notes.
-- stdio, loopback Streamable HTTP, official OpenAI Secure MCP Tunnel, and an optional local panel.
-
-There are 44 registered tools: 42 ordinary tools and 2 component-only tools. See the generated [tool schemas](docs/tools.json).
-
-Execution is disabled by default. Enabling `trusted-host` runs programs with the local owner's permissions; it is **not an OS sandbox**. Interpreter and package-manager aliases may allow filesystem and network effects outside a workspace. Batch changes are not atomic transactions, and file restoration cannot undo arbitrary program side effects.
-
-There is no persistent shell/PTY, autonomous task runner, hidden Codex context recovery, dedicated Git commit/push tool, or automatic import of ChatGPT-generated binary attachments. Original-byte transport and experimental widgets do not provide verified automatic document analysis.
-
-## Install from source
-
-Requires **Node.js ≥22.16, Git and ripgrep**. Clone and install:
+Requires **Node.js ≥ 22.16, Git and ripgrep (rg)**. No npm release is available yet; build from source:
 
 ```text
 git clone https://github.com/xq3427/WebCodex.git
@@ -38,66 +22,146 @@ node dist/src/cli.js config validate
 node dist/src/cli.js doctor
 ```
 
-On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. No npm release is available yet.
+On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. Skip `init` when a configuration already exists; initialization never overwrites it.
 
-Initialization creates a private `.webcodex/config.toml` with fresh device/workspace identities. Existing files are never overwritten. JSON uses the same schema. Every command accepts `--config /absolute/private/config.toml`; Windows paths such as `D:/WebCodex/config.toml` are supported.
+`init` creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. Next, use the [local control center](#unified-configuration-and-local-control-center) to edit settings, then configure the tunnel and [connect to ChatGPT](#connect-to-chatgpt).
 
-All user settings, including the tunnel API key, live in the selected file. Relative paths resolve against its directory. Settings do not merge across configuration files, and changes require a service restart.
+## Unified configuration and local control center
 
-The [TOML](examples/config.example.toml) and [JSON](examples/config.example.json) examples intentionally have blank identities and credentials. Run `init` first and copy desired settings into that generated configuration.
+All settings live in one selected TOML or JSON file: device, workspaces, tunnel API key, Codex home, program paths, permissions and limits. Configuration files are not merged. Relative paths resolve against the **configuration file's directory**.
+
+Open only the configuration page:
+
+```text
+node dist/src/cli.js panel
+```
+
+The terminal prints a complete local URL containing a temporary credential. The page provides workspace and permission forms, write-only secret updates, validation, and start/stop/save-and-restart controls for services it manages. `panel` does not immediately start an MCP connection. Keep the URL private and the terminal running.
+
+You can select another configuration location; keep using the same `--config` with subsequent commands:
+
+```text
+node dist/src/cli.js init --workspace . --config /absolute/private/config.toml
+node dist/src/cli.js panel --config /absolute/private/config.toml
+```
+
+Windows paths such as `D:/WebCodex/config.toml` are supported. The [TOML](examples/config.example.toml) and [JSON](examples/config.example.json) templates intentionally contain blank identities and credentials. Initialize a local configuration first, then copy the settings you need; do not run an empty-identity template directly.
+
+Configuration changes require restarting the corresponding service. The page manages connections it starts. Services launched by an older version, `connect --no-panel`, or standalone `serve` must be stopped normally in their original terminal before starting them from the page. External processes are never forcibly adopted. See [configuration](docs/local-configuration.md) and the [control center guide](docs/local-panel.md).
 
 ## Connect to ChatGPT
 
-Use the [official OpenAI Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). This path does not require your own public server, domain, Cloudflare, browser extension or Actions endpoint. Your account still needs the appropriate Platform and ChatGPT access.
+Use the **official OpenAI Secure MCP Tunnel** for a local stdio service. This path needs no self-hosted public server, domain, Cloudflare, browser extension or Actions endpoint. Your account still needs the appropriate Platform tunnel and ChatGPT connection access.
 
-1. Create/select a tunnel in [Platform](https://platform.openai.com/settings/organization/tunnels).
-2. Install the official [tunnel-client](https://github.com/openai/tunnel-client/releases). Windows users can run `./scripts/install-tunnel.ps1`. Linux/macOS users must configure a platform-specific binary path and SHA-256.
-3. Set `tunnel.enabled`, `tunnel.id` and `tunnel.apiKey` in the private configuration. Keep `server.transport = "stdio"`.
-4. Run:
+1. Create or select a tunnel in [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels), and prepare an API key with permission to run it.
+2. Install the official [tunnel-client](https://github.com/openai/tunnel-client/releases). Windows users can run `./scripts/install-tunnel.ps1`; Linux/macOS users configure a matching binary path and SHA-256.
+3. Set `tunnel.enabled`, `tunnel.id` and `tunnel.apiKey` in the selected configuration. Keep `server.transport = "stdio"`.
+4. Check and start the connection:
 
 ```text
 node dist/src/cli.js connect --doctor-only
 node dist/src/cli.js connect
 ```
 
-5. Add the corresponding Tunnel through ChatGPT's developer connection UI and enable WebCodex in a conversation.
+5. Select the corresponding Tunnel in ChatGPT's app/developer connection UI and enable WebCodex in the conversation. See the [setup guide](docs/chatgpt-setup.md) for account requirements, detailed steps and upgrades.
 
-Keep the connection terminal running. Inspect it from another terminal with `node dist/src/cli.js tunnel status`. Do not start another server using the same state directory. See the [setup guide](docs/chatgpt-setup.md) for authentication, upgrades and troubleshooting.
+With a v2 configuration, `connect` starts the connection and local control center, then prints the page URL. `stdio` uses the official tunnel; `http` starts a loopback HTTP service. A reachable local HTTP endpoint or page does not establish a ChatGPT connection. If the panel port conflicts, a free loopback port is selected without changing configuration.
 
-Ask ChatGPT to call `system_status` and `workspace_list`, verify the device, read a known text file, then create a new test text file without overwriting anything and read it back. Verify actual tool results, not just the assistant's success claim.
+Use `connect --no-panel` for a connection without the page; `connect --doctor-only` only checks setup. Keep the connection running and do not start another service sharing its state directory. Inspect status from another terminal with `node dist/src/cli.js tunnel status`.
 
-## Workspaces and Codex history
+After connecting, ask:
 
-Each workspace has one root. Add another locally:
+> Use WebCodex. Call system_status and workspace_list to confirm the device and project. Read README.md and explain the project. In the specified writable workspace, create webcodex-smoke.txt only if it does not exist, containing “WebCodex connection test”, then read it back and verify. Do not overwrite an existing file; report the actual tool error if anything fails.
+
+## Files: choose the appropriate route
+
+| File or task | Route | Completion evidence |
+| --- | --- | --- |
+| Existing local file | Read its hash with `fs_stat`, then use `fs_copy`; supports different workspaces and read-only sources, without upload or command execution | Copy receipt matches destination `fs_stat` size/hash |
+| Markdown, SVG, HTML or source code | `fs_write` or `fs_apply_patch` | Write result and a verified readback |
+| Original PNG, PPTX, PDF, ZIP or other ChatGPT-generated file | `fs_save_file` with this artifact's real file reference and original size/hash; inspect `fs_save_file_status` | `saved`, `verified=true`, then matching `fs_stat` |
+| Text in a local PDF | Experimental `document_open` / `document_read` | Answer only from actual pages returned as `ready`; real host retest remains pending |
+
+Automatic saving needs no user-entered URL, per-file picker or extension. For a file ID, the component calls `getFileDownloadUrl` and privately forwards the temporary address. A usable official file object can download directly. **The real ID must identify the current generated artifact and be authorized by the host**; a filename, `sandbox:/mnt/data/...`, or an earlier source attachment's ID is not a substitute.
+
+Compute `size_bytes/content_sha256` from the same unchanged original in Code Interpreter. For an existing destination, call `fs_stat` first and put the **current destination hash** in `expected_sha256`; `null` is create-only. Keep the component mounted and respect `retry_after_ms`, `polls_remaining` and `can_poll` when checking status. Pending is not saved; do not replay failed or unknown operations with a new key.
+
+The route uses `limits.binaryWriteMaxBytes`, defaulting to 32 MiB and configurable up to 128 MiB, independently of Base64 chunk staging. Legacy `fs_import_file` and Base64 tools remain compatible. Use Base64 only for complete small payloads that the host can reliably relay; stop on truncation. Never resize, reencode or regenerate an artifact to replace the original. See [local copying and recovery](docs/file-workflow.md) and [automatic original-file saving](docs/file-writeback.md).
+
+## Other capabilities and boundaries
+
+There are **65 registered tools: 55 ordinary tools and 10 component-only tools**. See the generated [tool schemas](docs/tools.json) and [current acceptance entry](docs/current-acceptance.md). Registration does not guarantee that every tool is callable in the current ChatGPT conversation.
+
+- Workspaces have independent names, read-only permissions and availability policies. File changes retain device checks, SHA-256 preconditions, idempotency keys, backups and conditional restoration.
+- Git status/diff, project AGENTS.md instructions, explicitly registered linked worktrees, independent tasks, checkpoints and handoff notes are supported.
+- Command execution is disabled by default. The page can enable local programs with output, waits, cancellation and stdin; legacy configurations may retain an allowlist. `trusted-host` runs with the local owner's permissions and is **not an OS sandbox**.
+- Codex history access is disabled by default. When enabled, it reads visible local sessions without model calls, authentication files, hidden reasoning recovery or automatic replay of historical commands.
+- A synthetic text relay succeeded twice in a real ChatGPT connection. This does not establish real PDF ingestion or original-file writeback. The PDF prototype's bundled-font/CMap fix still needs a real PDF retest; there is no scanned-document OCR, image understanding or automatic native attachment ingestion.
+- There is no persistent shell/PTY, autonomous task runner or dedicated Git commit/push tool. Batch changes are not cross-file atomic transactions, and file restoration cannot undo program, network or database side effects.
+
+Local validation has been performed on Windows, with CI configured for Windows, Linux and macOS. Consult the [actual CI runs](https://github.com/xq3427/WebCodex/actions/workflows/ci.yml) and [testing boundaries](docs/testing.md). WebCodex is MIT-licensed; ChatGPT subscriptions, platform permissions and service billing are determined by their providers.
+
+## Workspaces, devices and Codex continuation
+
+Each workspace has one local `root`. Add separate entries for different names or permissions; do not concatenate paths in a single root field. Use the page or CLI:
 
 ```text
 node dist/src/cli.js workspace add --id papers --name Papers --root /absolute/papers --read-only
 node dist/src/cli.js workspace health
 node dist/src/cli.js device rename --name "Office laptop"
 node dist/src/cli.js codex enable --home /absolute/codex-home
+node dist/src/cli.js codex status
 ```
 
-On Windows, Codex history may live on any local drive, for example `D:/CodexData/.codex`. If `--home` is omitted, the command preserves an existing configured directory, or discovers `CODEX_HOME` / `~/.codex` once and saves the result.
+Preserve existing workspace `id/uid` values. Initialize each device separately with its own configuration, state and tunnel identity; do not copy another device's live configuration or database. v2 mutations, execution and cancellation require `expected_device_id`. Files are not automatically synchronized between devices.
 
-Restart the connection after configuration changes. Initialize each device separately; do not clone live credentials, identities or state. v2 mutations require `expected_device_id`. Files and operations are not automatically routed between devices.
+Codex home can reside on any local drive, such as `D:/CodexData/.codex`. If `--home` is omitted, the existing configured directory is retained; first discovery uses `CODEX_HOME` or `.codex` under the user directory and stores the result in unified configuration. After restarting the connection, ask ChatGPT to locate the project's conversation, read necessary history, then inspect current files and Git state before continuing. See [configuration](docs/local-configuration.md), [tasks and execution](docs/task-workflow.md), and [Codex continuation](docs/codex-emergency.md).
 
-Read-only Codex access does not modify sessions or read authentication files. Follow cursors and omission indicators, and verify current files before continuing historical work.
+## Project layout
 
-## Development
+| Path | Purpose |
+| --- | --- |
+| `src/` | TypeScript CLI, MCP tools, workspace policy, file services, jobs, history and local panel |
+| `src/browser/` | Browser PDF text component and asset-loading code |
+| `test/` | Synthetic-file, temporary-workspace, service and component regression tests |
+| `scripts/` | Build, tests, tool export, repository audit and tunnel helpers |
+| `examples/` | Configuration templates and examples without live identities or secrets |
+| `docs/` | Guides, architecture, boundaries, generated schemas and acceptance entry |
+| `.github/` | CI and issue/PR templates |
+| `dist/`, `node_modules/` | Local build and dependency outputs; not committed |
+| `.webcodex/` | Default local configuration, state and runtime artifacts; not committed |
+
+## Documentation and development
+
+- Setup: [ChatGPT connection](docs/chatgpt-setup.md) · [unified configuration](docs/local-configuration.md) · [local control center](docs/local-panel.md)
+- Workflows: [files](docs/file-workflow.md) · [original-file saving](docs/file-writeback.md) · [tasks and execution](docs/task-workflow.md) · [Codex continuation](docs/codex-emergency.md)
+- Implementation and evidence: [architecture](docs/architecture.md) · [feature status](docs/implementation-status.md) · [testing](docs/testing.md) · [protocol diagnostics](docs/protocol-diagnostics.md) · [roadmap](docs/roadmap.md)
+- Maintenance: [contributing](CONTRIBUTING.md) · [security](SECURITY.md) · [changelog](CHANGELOG.md) · [third-party notices](THIRD_PARTY_NOTICES.md)
+
+The detailed guides are currently in Chinese; see the [full index](docs/README.md). Development checks:
 
 ```text
 npm run check
 npm test
-npm run export:tools
+npm run check:tools
+npm run test:repo
 npm run audit:repo
 ```
 
-Windows local validation and its limitations are documented in [testing](docs/testing.md). Check the [actual CI runs](https://github.com/xq3427/WebCodex/actions/workflows/ci.yml) for Windows, Linux and macOS results.
+After tool or version changes, build and run `npm run export:tools` to update generated documentation before checking consistency. Never commit live configurations, credentials, Codex history, state databases, unredacted logs or private acceptance artifacts.
 
-The detailed guides are currently in Chinese: [configuration](docs/local-configuration.md), [files](docs/file-workflow.md), [tasks](docs/task-workflow.md), [Codex continuation](docs/codex-emergency.md), [architecture](docs/architecture.md), [roadmap](docs/roadmap.md).
+## Troubleshooting
 
-Keep live configurations, keys, Codex history, state databases and logs out of commits and issues. See [security](SECURITY.md).
+| Symptom | Action |
+| --- | --- |
+| doctor cannot find rg | Install ripgrep or configure `rgPath` in the selected file |
+| SQLite ExperimentalWarning | A Node SQLite notice; it does not alone indicate failure |
+| `TUNNEL_ALREADY_RUNNING` | Inspect `tunnel status` with the same configuration; do not delete locks or repeatedly start another connection |
+| Tools appear in app details but are unavailable in chat | Enable the correct connection, update tools through the current ChatGPT UI, then verify `system_status` and actual calls |
+| File save remains pending or fails | Inspect `fs_save_file_status`, its error and polling budget; a visible ID does not establish authorization or a saved file |
+| PDF component appears without readable text | Check `document_read`; answer only from actual pages returned as `ready` |
+| Configuration edits have no effect | Wait for jobs to finish, then save and restart the relevant service; running processes do not automatically reload |
 
 ## License
 
-[MIT](LICENSE). Third-party components retain their own licenses; see [notices](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Dependencies and the official tunnel-client retain their own licenses.

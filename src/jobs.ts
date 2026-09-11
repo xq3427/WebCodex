@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
+import { accessSync, constants, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import type { ServiceContext } from './types.js';
@@ -32,6 +33,48 @@ interface ActiveJob {
 }
 
 const terminal = new Set<JobStatus>(['succeeded', 'failed', 'cancelled', 'timed_out', 'unknown']);
+
+/** cmd parses its command text itself; CRT backslash-escaping changes quoted paths. */
+function nativeSpawnArguments(executable: string, args: string[]) {
+  if (process.platform === 'win32' && path.win32.basename(executable).toLowerCase() === 'cmd.exe') {
+    const commandIndex = args.findIndex(arg => /^\/[ck]$/i.test(arg));
+    if (commandIndex >= 0 && commandIndex === args.length - 2
+      && args.slice(0, commandIndex).every(arg => /^\/[a-z0-9:]+$/i.test(arg))) {
+      // Match cmd's /s quote contract: remove one outer pair, leaving the supplied
+      // shell text (including its path quotes) intact. No other program uses this.
+      const options = args.slice(0, commandIndex).filter(arg => arg.toLowerCase() !== '/s');
+      return { args: [...options, '/s', args[commandIndex]!, `"${args[commandIndex + 1]!}"`], windowsVerbatimArguments: true };
+    }
+  }
+  return { args, windowsVerbatimArguments: false };
+}
+
+/** Resolve once to an absolute native file, excluding cwd-dependent PATH entries and shell wrappers. */
+function unrestrictedExecutable(name: string, environment: NodeJS.ProcessEnv): string {
+  if (!name || name.length > 4096 || /[\x00-\x1f\x7f]/.test(name) || /\.(?:bat|cmd)$/i.test(name)) {
+    throw new AppError('INVALID_EXECUTABLE', 'Use a native program name or absolute executable path, with arguments in args. Run scripts through an explicit interpreter or configured preset.');
+  }
+  const absolute = path.isAbsolute(name);
+  if (!absolute && (!/^[a-zA-Z0-9_][a-zA-Z0-9_.+-]*$/.test(name) || name === '.' || name === '..')) {
+    throw new AppError('INVALID_EXECUTABLE', 'Program names cannot include paths, shell syntax or arguments; use an absolute path when needed.');
+  }
+  const inheritedPath = Object.entries(environment).find(([key]) => key.toUpperCase() === 'PATH')?.[1] ?? '';
+  const directories = absolute ? [''] : inheritedPath.split(path.delimiter).filter(directory => path.isAbsolute(directory) && !/[\x00-\x1f\x7f]/.test(directory));
+  const suffixes = process.platform === 'win32' && !/\.(?:exe|com)$/i.test(name) ? ['.exe', '.com'] : [''];
+  for (const directory of directories) for (const suffix of suffixes) {
+    const candidate = absolute ? name + suffix : path.join(directory, name + suffix);
+    try {
+      if (!statSync(candidate).isFile()) continue;
+      accessSync(candidate, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
+      const resolved = realpathSync(candidate);
+      if (process.platform === 'win32' && !/\.(?:exe|com)$/i.test(resolved)) continue;
+      // Validate the target, but preserve the selected entry path: Python virtualenvs can
+      // use a symlink to a shared interpreter whose own real path selects a different env.
+      return path.resolve(candidate);
+    } catch { /* Try the next absolute PATH entry; never fall back to a shell or cwd. */ }
+  }
+  throw new AppError('EXECUTABLE_NOT_FOUND', 'The native program was not found in the host PATH or at the requested absolute path. Use its installed executable path or an explicit interpreter preset.');
+}
 
 function integer(value: number, min: number, max: number, field: string): number {
   if (!Number.isSafeInteger(value) || value < min || value > max) {
@@ -88,10 +131,12 @@ export class JobService {
 
   private executionSelection(workspaceId: string, alias: string) {
     const effective = effectiveWorkspaceExecution(this.ctx.config, workspaceId);
-    if (typeof alias !== 'string' || !Object.hasOwn(effective.allowedExecutables, alias)) {
+    const preset = typeof alias === 'string' && Object.hasOwn(effective.allowedExecutables, alias);
+    if (typeof alias !== 'string' || !preset && effective.commandPolicy !== 'all') {
       throw new AppError('EXECUTABLE_NOT_ALLOWED', 'Use an executable alias authorized by this workspace execution profile or global configuration.');
     }
-    const { command, args } = executableDefinition(effective.allowedExecutables[alias]!);
+    const { command, args } = preset ? executableDefinition(effective.allowedExecutables[alias]!)
+      : { command: unrestrictedExecutable(alias, executionEnvironment(effective.env)), args: [] };
     if (typeof command !== 'string' || !path.isAbsolute(command) || /\.(?:bat|cmd)$/i.test(command) || command.includes('\0')) {
       throw new AppError('INVALID_EXECUTABLE', 'Configured executables must be absolute native executable paths. .cmd and .bat files are unsupported.');
     }
@@ -99,8 +144,9 @@ export class JobService {
       throw new AppError('INVALID_ARGUMENT', 'Configured arguments must contain at most 256 strings without null bytes, each at most 128 KiB.');
     }
     const env = executionEnvironment(effective.env, command);
-    const contextSha256 = createHash('sha256').update(canonical({ profile: effective.profile, alias, command, args, env })).digest('hex');
-    return { profile: effective.profile, command, args, env, contextSha256 };
+    // Keep legacy allowlist hashes stable; switching to all must still invalidate an old receipt.
+    const contextSha256 = createHash('sha256').update(canonical({ profile: effective.profile, alias, command, args, env, ...(effective.commandPolicy === 'all' ? { commandPolicy: 'all' } : {}) })).digest('hex');
+    return { profile: effective.profile, commandPolicy: effective.commandPolicy, command, args, env, contextSha256 };
   }
 
   /** Preserve old no-profile receipts/errors; a stored operation can never cause a new launch here. */
@@ -112,7 +158,7 @@ export class JobService {
 
   private stdinExecution(row: JobRow) {
     const selected = this.executionSelection(row.workspace_id, row.executable_alias);
-    if (row.execution_context_sha256 !== null && row.execution_context_sha256 !== selected.contextSha256 || row.execution_context_sha256 === null && selected.profile !== null) {
+    if (row.execution_context_sha256 !== null && row.execution_context_sha256 !== selected.contextSha256 || row.execution_context_sha256 === null && (selected.profile !== null || selected.commandPolicy !== 'allowlist')) {
       throw new AppError('EXECUTION_PROFILE_CHANGED', 'The current execution profile, executable or environment differs from this job. Restore its original configuration before sending input.');
     }
     return selected;
@@ -151,7 +197,7 @@ export class JobService {
     const binding = initializeIdentity(this.ctx).workspaceIdentity(input.workspace_id);
     if (this.executionSelection(input.workspace_id, input.executable).contextSha256 !== selected.contextSha256) throw new AppError('EXECUTION_PROFILE_CHANGED', 'Execution configuration changed during authorization. Retry using the current local settings.');
     const legacy = { workspace_id: input.workspace_id, executable: input.executable, args: userArgs, cwd: relativeCwd, timeout_ms: timeout, ...(stdin === 'pipe' ? { stdin } : {}) };
-    const payload = selected.profile === null && this.legacyPayload(input.workspace_id, 'exec_start', input.idempotency_key, legacy)
+    const payload = selected.profile === null && selected.commandPolicy === 'allowlist' && this.legacyPayload(input.workspace_id, 'exec_start', input.idempotency_key, legacy)
       ? legacy : { ...legacy, execution_context_sha256: selected.contextSha256 };
     const saved = await boundOperation(this.ctx, input.workspace_id, 'exec_start', input.idempotency_key, payload, async () => {
       const cwd = await this.ctx.paths.resolve(input.workspace_id, relativeCwd, { directory: true, write: true });
@@ -170,8 +216,10 @@ export class JobService {
       this.ctx.store.audit('exec.start', input.workspace_id, { job_id: id, executable: input.executable, command: executablePath, args, cwd: relativeCwd, timeout_ms: timeout, execution_mode: 'trusted-host' });
       let child: ChildProcess;
       try {
-        child = spawn(executablePath, args, {
+        const spawnInput = nativeSpawnArguments(executablePath, args);
+        child = spawn(executablePath, spawnInput.args, {
           cwd, shell: false, windowsHide: true, detached: process.platform !== 'win32',
+          windowsVerbatimArguments: spawnInput.windowsVerbatimArguments,
           stdio: [stdin === 'pipe' ? 'pipe' : 'ignore', 'pipe', 'pipe'], env: selected.env,
         });
       } catch (error) {

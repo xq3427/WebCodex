@@ -13,15 +13,31 @@ import { readTunnelStatus } from './tunnel.js';
 import { CodexSessionService } from './codex-sessions.js';
 import { redactSessionText } from './codex-redaction.js';
 import { renderLocalPanel } from './local-panel-ui.js';
+import { renderLocalAdmin } from './local-admin-ui.js';
+import { loadConfig } from './config.js';
+import { readConfigDocument, validatePanelConfigBaseline } from './config-admin.js';
+import type { PanelConfigService } from './panel-config.js';
+import { safePanelDetails } from './panel-validation.js';
+import type { PanelRuntime } from './panel-runtime.js';
 import { VERSION } from './version.js';
 import type { AppConfig, Store } from './types.js';
 
 const BODY_LIMIT = 4096;
+const ADMIN_BODY_LIMIT = 262144;
 const safeCode = (error: unknown) => error instanceof AppError && /^[A-Z_]{1,80}$/.test(error.code) ? error.code
   : ({ ENOENT: 'NOT_FOUND', EACCES: 'ACCESS_DENIED', EPERM: 'ACCESS_DENIED' } as Record<string, string>)[(error as NodeJS.ErrnoException)?.code ?? ''] ?? 'PANEL_REQUEST_FAILED';
 const same = (a: BigIntStats, b: BigIntStats) => a.ino === b.ino && a.birthtimeNs === b.birthtimeNs && a.size === b.size
   && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs && (a.dev === b.dev || process.platform === 'win32' && (a.dev === 0n || b.dev === 0n));
 const safeText = (value: unknown, max = 512) => redactSessionText(String(value ?? '').slice(0, max * 2)).text.slice(0, max);
+
+/** Allow the local repair UI to open when an optional history root has disappeared. */
+export async function loadPanelViewConfig(configPath: string) {
+  try { return await loadConfig(configPath, { workspaceDiagnostics: true }); }
+  catch {
+    const document = await readConfigDocument(configPath);
+    return await validatePanelConfigBaseline(document.raw, document.fullPath);
+  }
+}
 
 /** No StateStore lease, migrations, stale-job recovery, or write-capable database is opened. */
 function readJobs(config: AppConfig, jobId?: string) {
@@ -109,7 +125,7 @@ export async function revealLocalFile(directory: string) {
   });
 }
 
-function body(req: IncomingMessage): Promise<Record<string, unknown>> {
+function body(req: IncomingMessage, limit = BODY_LIMIT): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let size = 0, finished = false; const chunks: Buffer[] = [];
     const finish = (error?: AppError) => {
@@ -122,7 +138,7 @@ function body(req: IncomingMessage): Promise<Record<string, unknown>> {
         resolve(value as Record<string, unknown>);
       } catch { reject(new AppError('INVALID_ARGUMENT', 'Expected a JSON object.')); }
     };
-    const data = (chunk: Buffer) => { size += chunk.length; if (size > BODY_LIMIT) finish(new AppError('REQUEST_TOO_LARGE', 'Request is too large.')); else chunks.push(chunk); };
+    const data = (chunk: Buffer) => { size += chunk.length; if (size > limit) finish(new AppError('REQUEST_TOO_LARGE', 'Request is too large.')); else chunks.push(chunk); };
     const end = () => finish();
     const interrupted = () => finish(new AppError('REQUEST_INTERRUPTED', 'Request was interrupted.'));
     const timer = setTimeout(() => finish(new AppError('REQUEST_TIMEOUT', 'Request timed out.')), 5000);
@@ -130,11 +146,12 @@ function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   });
 }
 
-export async function startLocalPanel(inputConfig: AppConfig, options: { port?: number; reveal?: (directory: string) => Promise<void> } = {}) {
-  const config = structuredClone(inputConfig);
-  const workspaceBindings = new Map(config.workspaces.map(workspace => [workspace.id, inspectWorkspace(config, workspace).fingerprint ?? null]));
+export async function startLocalPanel(inputConfig: AppConfig, options: { port?: number; reveal?: (directory: string) => Promise<void>; management?: { config: PanelConfigService; runtime: PanelRuntime } } = {}) {
+  let config = structuredClone(inputConfig);
+  let workspaceBindings = new Map(config.workspaces.map(workspace => [workspace.id, inspectWorkspace(config, workspace).fingerprint ?? null]));
   bindWorkspaceRuntime(config, workspaceBindings);
-  const paths = new WorkspacePaths(config), token = randomBytes(32).toString('base64url'), expectedAuth = Buffer.from('Bearer ' + token);
+  let paths = new WorkspacePaths(config);
+  const token = randomBytes(32).toString('base64url'), expectedAuth = Buffer.from('Bearer ' + token);
   const forbiddenStore: Store = {
     get db(): DatabaseSync { throw new AppError('PANEL_READ_ONLY', 'Local panel cannot open a writable state store.'); },
     idempotent: async () => { throw new AppError('PANEL_READ_ONLY', 'Local panel cannot mutate project state.'); },
@@ -143,15 +160,25 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
   // Each UI page uses one index snapshot. Active Codex sessions can update the
   // ordering between windows; continue through the existing signed cursor instead
   // of rescanning several changing snapshots inside a single HTTP request.
-  const sessionConfig: AppConfig = { ...config, codexSessions: { ...config.codexSessions, maxWindowsPerRequest: 1 } };
+  let sessionConfig: AppConfig = { ...config, codexSessions: { ...config.codexSessions, maxWindowsPerRequest: 1 } };
   bindWorkspaceRuntime(sessionConfig, workspaceBindings);
-  const sessions = new CodexSessionService({ config: sessionConfig, paths, store: forbiddenStore }, async () => { throw new AppError('PANEL_READ_ONLY', 'Use MCP for session handoff.'); });
+  let sessions = new CodexSessionService({ config: sessionConfig, paths, store: forbiddenStore }, async () => { throw new AppError('PANEL_READ_ONLY', 'Use MCP for session handoff.'); });
+  const refreshSnapshot = async () => {
+    const fresh = await loadPanelViewConfig(inputConfig.configPath);
+    const bindings = new Map(fresh.workspaces.map(workspace => [workspace.id, inspectWorkspace(fresh, workspace).fingerprint ?? null]));
+    bindWorkspaceRuntime(fresh, bindings);
+    config = fresh; workspaceBindings = bindings; paths = new WorkspacePaths(config);
+    sessionConfig = { ...config, codexSessions: { ...config.codexSessions, maxWindowsPerRequest: 1 } };
+    bindWorkspaceRuntime(sessionConfig, workspaceBindings);
+    sessions = new CodexSessionService({ config: sessionConfig, paths, store: forbiddenStore }, async () => { throw new AppError('PANEL_READ_ONLY', 'Use MCP for session handoff.'); });
+  };
   let port = options.port ?? config.localPanel?.port ?? 8767;
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new AppError('CONFIG_ERROR', 'Invalid local panel port.');
   let origin = '', active = 0, closing: Promise<void> | undefined;
-  const html = renderLocalPanel();
+  const legacyHtml = renderLocalPanel();
+  const html = options.management ? renderLocalAdmin() : legacyHtml;
   // Static asset hashes permit only this bundled code; no inline handlers, external scripts or CDN.
-  const inlineHashes = [...html.matchAll(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/g)].map(match => `'sha256-${createHash('sha256').update(match[2]).digest('base64')}'`).join(' ');
+  const inlineHashes = [...(html + legacyHtml).matchAll(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/g)].map(match => `'sha256-${createHash('sha256').update(match[2]).digest('base64')}'`).join(' ');
   const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY', 'Cross-Origin-Resource-Policy': 'same-origin',
     'Content-Security-Policy': `default-src 'none'; script-src ${inlineHashes}; style-src ${inlineHashes}; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'` };
@@ -167,7 +194,7 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
     }
     return { workspace_id: value.workspace_id, path: value.path };
   };
-  async function fileInfo(workspaceId: string, relative: string) {
+  async function fileInfo(workspaceId: string, relative: string, config: AppConfig, paths: WorkspacePaths) {
     const absolute = await paths.resolve(workspaceId, relative), before = await lstat(absolute, { bigint: true });
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n) throw new AppError('PATH_DENIED', 'Select an ordinary file.');
     const max = config.limits.fileReadMaxBytes ?? 16777216;
@@ -200,6 +227,7 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
     const fail = (status: number, code: string) => send(res, status, { ok: false, error: { code } });
     if (req.headers.host !== '127.0.0.1:' + port || req.headers.origin !== undefined && req.headers.origin !== origin) { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
     if (req.url === '/' && req.method === 'GET') { send(res, 200, html, true); return; }
+    if (req.url === '/files' && req.method === 'GET' && options.management) { send(res, 200, legacyHtml, true); return; }
     if (req.url === '/favicon.ico' && req.method === 'GET') { res.writeHead(204, headers); res.end(); return; }
     const actual = Buffer.from(req.headers.authorization ?? '');
     if (actual.length !== expectedAuth.length || !timingSafeEqual(actual, expectedAuth)) { fail(401, 'PANEL_AUTH_REQUIRED'); return; }
@@ -209,35 +237,60 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
     try {
       const url = new URL(req.url ?? '', origin);
       if (!req.url?.startsWith('/') || url.origin !== origin || /%2f|%5c/i.test(url.pathname)) throw new AppError('INVALID_ARGUMENT', 'Invalid request path.');
+      const view = { config, paths, sessions };
       const query = () => { const pairs = [...url.searchParams]; if (new Set(pairs.map(([key]) => key)).size !== pairs.length) throw new AppError('INVALID_ARGUMENT', 'Duplicate query fields.'); return Object.fromEntries(pairs); };
+      if (options.management && !url.search) {
+        const management = options.management;
+        if (req.method === 'GET' && url.pathname === '/api/config') { send(res, 200, await management.config.read()); return; }
+        if (req.method === 'GET' && url.pathname === '/api/runtime') { send(res, 200, await management.runtime.status()); return; }
+        if (req.method === 'POST' && ['/api/config/validate', '/api/config/save', '/api/runtime'].includes(url.pathname)) {
+          // Administrative writes require an explicit same-origin browser request,
+          // in addition to the private per-panel bearer token. No CORS support.
+          if (req.headers.origin !== origin || req.headers['sec-fetch-site'] !== undefined && req.headers['sec-fetch-site'] !== 'same-origin') { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
+          if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'] ?? '') || req.headers['content-encoding'] !== undefined) { fail(415, 'JSON_REQUIRED'); return; }
+          if (Number(req.headers['content-length'] ?? 0) > ADMIN_BODY_LIMIT) { fail(413, 'REQUEST_TOO_LARGE'); return; }
+          const input = await body(req, ADMIN_BODY_LIMIT);
+          if (url.pathname === '/api/runtime') {
+            if (Object.keys(input).some(key => !['action','expected_revision'].includes(key)) || !['start','stop','restart'].includes(String(input.action)) || input.expected_revision !== undefined && (typeof input.expected_revision !== 'string' || !/^[a-f0-9]{64}$/.test(input.expected_revision))) throw new AppError('INVALID_ARGUMENT', 'Select a service action and current configuration revision.');
+            send(res, 200, await management.runtime.action(input as unknown as Parameters<PanelRuntime['action']>[0])); return;
+          }
+          if (url.pathname === '/api/config/validate') { send(res, 200, await management.config.validate(input as Parameters<PanelConfigService['validate']>[0])); return; }
+          const result = await management.config.save(input as Parameters<PanelConfigService['save']>[0]);
+          // A committed save is not undone when a subsequent local status read fails.
+          // Preserve its revision receipt and label the stale viewer explicitly.
+          let viewerRefreshed = true;
+          try { await refreshSnapshot(); } catch { viewerRefreshed = false; }
+          send(res, 200, { ...result, viewer_refreshed: viewerRefreshed }); return;
+        }
+      }
       if (req.method === 'GET' && url.pathname === '/api/status' && !url.search) {
-        const tunnel = await readTunnelStatus(config, { timeoutMs: 1500 });
-        send(res, 200, { version: VERSION, device: config.device ?? { id: null, name: 'Local device' }, config_path: config.configPath,
-          observed_at: new Date().toISOString(), execution_mode: config.execution.mode, settings_snapshot: 'restart_panel_after_config_changes',
-          workspaces: config.workspaces.map(w => ({ workspace_id: w.id, name: w.name, root: w.root, read_only: w.readOnly, enabled: w.enabled !== false, ...workspaceHealth(config, w) })),
-          tunnel, jobs: readJobs(config), diagnostics: readMcpDiagnostics(config, 12),
-          codex: { enabled: config.codexSessions.enabled, home: config.codexSessions.home, read_only: true },
+        const tunnel = await readTunnelStatus(view.config, { timeoutMs: 1500 });
+        send(res, 200, { version: VERSION, device: view.config.device ?? { id: null, name: 'Local device' }, config_path: view.config.configPath,
+          observed_at: new Date().toISOString(), execution_mode: view.config.execution.mode, settings_snapshot: options.management ? 'saved_local_config_not_running_service' : 'restart_panel_after_config_changes',
+          workspaces: view.config.workspaces.map(w => ({ workspace_id: w.id, name: w.name, root: w.root, read_only: w.readOnly, enabled: w.enabled !== false, ...workspaceHealth(view.config, w) })),
+          tunnel, jobs: readJobs(view.config), diagnostics: readMcpDiagnostics(view.config, 12),
+          codex: { enabled: view.config.codexSessions.enabled, home: view.config.codexSessions.home, read_only: true },
           original_files: { method: 'chatgpt_native_attachment', automatic_upload: false, model_access: 'unverified' } }); return;
       }
       if (req.method === 'GET' && url.pathname === '/api/files') {
         const input = location(query());
-        const directory = await paths.resolve(input.workspace_id, input.path, { directory: true });
+        const directory = await view.paths.resolve(input.workspace_id, input.path, { directory: true });
         const stream = await opendir(directory); const entries: unknown[] = []; let scanned = 0, truncated = false;
         for await (const item of stream) {
-          if (++scanned > 1000 || entries.length >= config.limits.listMaxEntries) { truncated = true; break; }
-          const rel = path.relative(paths.get(input.workspace_id).root, path.join(directory, item.name)).split(path.sep).join('/');
+          if (++scanned > 1000 || entries.length >= view.config.limits.listMaxEntries) { truncated = true; break; }
+          const rel = path.relative(view.paths.get(input.workspace_id).root, path.join(directory, item.name)).split(path.sep).join('/');
           try {
-            const target = await paths.resolve(input.workspace_id, rel), info = await lstat(target);
+            const target = await view.paths.resolve(input.workspace_id, rel), info = await lstat(target);
             entries.push({ name: item.name, path: rel, type: info.isDirectory() ? 'directory' : 'file', ...(info.isFile() ? { size_bytes: info.size } : {}) });
           } catch { /* Inaccessible or protected entries are not attachment candidates. */ }
         }
-        await paths.resolve(input.workspace_id, input.path, { directory: true });
+        await view.paths.resolve(input.workspace_id, input.path, { directory: true });
         send(res, 200, { workspace_id: input.workspace_id, path: input.path, entries, truncated, selection_hint: 'Use an exact relative path when a directory listing is truncated.' }); return;
       }
       if (req.method === 'GET' && url.pathname === '/api/codex/sessions') {
         const input = query();
         if (Object.keys(input).some(key => !['workspace_id', 'cursor'].includes(key)) || !input.workspace_id) throw new AppError('INVALID_ARGUMENT', 'Select a workspace.');
-        try { send(res, 200, await sessions.list({ workspace_id: input.workspace_id, cursor: input.cursor, limit: 20 })); }
+        try { send(res, 200, await view.sessions.list({ workspace_id: input.workspace_id, cursor: input.cursor, limit: 20 })); }
         catch (error) {
           const code = safeCode(error);
           const changed = code === 'HISTORY_INDEX_CHANGED' || code === 'INVALID_CURSOR';
@@ -249,25 +302,32 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
       if (req.method === 'GET' && url.pathname === '/api/job-output') {
         const input = query();
         if (Object.keys(input).length !== 1 || !/^[0-9a-f-]{36}$/i.test(input.job_id ?? '')) throw new AppError('INVALID_ARGUMENT', 'Select a job.');
-        send(res, 200, readJobs(config, input.job_id)); return;
+        send(res, 200, readJobs(view.config, input.job_id)); return;
       }
       if (req.method === 'POST' && ['/api/file-info', '/api/reveal'].includes(url.pathname) && !url.search) {
         if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'] ?? '') || req.headers['content-encoding'] !== undefined) { fail(415, 'JSON_REQUIRED'); return; }
         if (Number(req.headers['content-length'] ?? 0) > BODY_LIMIT) { fail(413, 'REQUEST_TOO_LARGE'); return; }
         const input = location(await body(req));
-        const info = await fileInfo(input.workspace_id, input.path);
+        const info = await fileInfo(input.workspace_id, input.path, view.config, view.paths);
         if (url.pathname === '/api/file-info') { send(res, 200, info); return; }
-        await paths.resolve(input.workspace_id, input.path);
+        await view.paths.resolve(input.workspace_id, input.path);
         await (options.reveal ?? revealLocalFile)(path.dirname(info.absolute_path));
         send(res, 200, { ok: true, action: 'file_manager_requested', upload_status: 'not_uploaded' }); return;
       }
       fail(404, 'NOT_FOUND');
-    } catch (error) { const code = safeCode(error); fail(code === 'REQUEST_TOO_LARGE' ? 413 : code === 'REQUEST_TIMEOUT' ? 408 : code === 'INVALID_ARGUMENT' ? 400 : 422, code); }
+    } catch (error) {
+      const code = safeCode(error);
+      const status = code === 'REQUEST_TOO_LARGE' ? 413 : code === 'REQUEST_TIMEOUT' ? 408 : code === 'INVALID_ARGUMENT' ? 400 : ['CONFIG_CONFLICT','CONFIG_LOCKED','CONFIG_EDIT_BUSY','PANEL_RUNTIME_BUSY','PANEL_JOBS_ACTIVE'].includes(code) ? 409 : 422;
+      const details = error instanceof AppError ? safePanelDetails(error.details) : undefined;
+      send(res, status, { ok: false, error: { code, ...details } });
+    }
     finally { active--; }
   });
   server.headersTimeout = 10000; server.requestTimeout = 10000; server.keepAliveTimeout = 1000;
   await new Promise<void>((resolve, reject) => {
-    const error = () => reject(new AppError('PANEL_START_FAILED', 'The local panel port is unavailable.'));
+    const error = (failure: NodeJS.ErrnoException) => reject(new AppError('PANEL_START_FAILED', 'The local panel port is unavailable.', {
+      reason: failure.code === 'EADDRINUSE' ? 'address_in_use' : 'listen_failed',
+    }));
     server.once('error', error); server.listen(port, '127.0.0.1', () => { server.off('error', error); resolve(); });
   });
   port = (server.address() as { port: number }).port; origin = 'http://127.0.0.1:' + port;

@@ -91,6 +91,7 @@ async function inspectAliases(aliases: Record<string, ExecutableConfig>) {
 }
 
 export async function inspectExecution(config: AppConfig) {
+  const commandPolicy = config.execution.commandPolicy ?? 'allowlist';
   const env = normalizeExecutionEnvironment(config.execution.env);
   const executables = await inspectAliases(config.execution.allowedExecutables);
   const workspaces = await Promise.all(config.workspaces.map(async workspace => {
@@ -98,10 +99,11 @@ export async function inspectExecution(config: AppConfig) {
     const programs = await inspectAliases(effective.allowedExecutables);
     const health = workspaceHealth(config, workspace);
     return { workspace_id:workspace.id, profile:effective.profile, ...health,
-      ready:health.available && !workspace.readOnly && config.execution.mode === 'trusted-host' && programs.length > 0 && programs.every(program => program.available),
+      command_policy: commandPolicy, program_resolution_at_launch: commandPolicy === 'all',
+      ready:health.available && !workspace.readOnly && config.execution.mode === 'trusted-host' && (commandPolicy === 'all' || programs.length > 0 && programs.every(program => program.available)),
       configured_environment_names:Object.keys(effective.env).sort(), executables:programs };
   }));
-  return { ok: true, mode: config.execution.mode, ready: config.execution.mode === 'trusted-host' && executables.length > 0 && executables.every(exe => exe.available), readiness_scope:'global_defaults', static_check_only: true, configured_environment_names: Object.keys(env).sort(), executables, workspaces };
+  return { ok: true, mode: config.execution.mode, command_policy: commandPolicy, program_resolution_at_launch: commandPolicy === 'all', ready: config.execution.mode === 'trusted-host' && (commandPolicy === 'all' || executables.length > 0 && executables.every(exe => exe.available)), readiness_scope:'global_defaults', static_check_only: true, configured_environment_names: Object.keys(env).sort(), executables, workspaces };
 }
 
 /** Local owner operation: register a verified entry point while preserving the configured execution mode. */

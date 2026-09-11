@@ -163,10 +163,10 @@ test('embedded snapshot URIs identify service, workspace and exact content witho
   assert.equal(uri.search, ''); assert.equal(uri.hash, '');
   assert.notEqual(uri.pathname.split('/')[3], first.data.display_name);
   assert.deepEqual(first.data.next_step?.arguments, { workspace_id: 'default', path: name, expected_device_id: f.app.identity.deviceId });
-  assert.equal(first.data.next_step?.tool, 'fs_open_file');
-  assert.match(first.data.next_step!.when, /ChatGPT native attachments/);
-  assert.match(first.data.next_step!.when, /Only if the user explicitly asks.*experimental route/);
-  assert.match(first.data.next_step!.when, /current-conversation attachment and actual file access/);
+  assert.equal(first.data.next_step?.tool, 'document_open');
+  assert.match(first.data.next_step!.when, /For a PDF text-analysis request/);
+  assert.match(first.data.next_step!.when, /document_open then document_read/);
+  assert.match(first.data.next_step!.when, /Only status=ready returns page text/);
   assert.match(first.data.model_usage, /human-readable file label/);
   assert.match(first.data.model_usage, /not a download link or a resources\/read endpoint/);
   assert.match(first.data.model_usage, /does not mean the host cannot parse or preview/);

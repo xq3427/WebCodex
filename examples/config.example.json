@@ -12,6 +12,7 @@
   ],
   "execution": {
     "mode": "disabled",
+    "commandPolicy": "all",
     "allowedExecutables": {
       "node": {
         "command": "${nodePath}",
@@ -43,13 +44,16 @@
     "fileWidgetCacheMaxBytes": 33554432,
     "fileWidgetChunkMaxBytes": 65536,
     "writeMaxBytes": 1048576,
+    "binaryWriteMaxBytes": 33554432,
     "searchMaxResults": 100,
-    "listMaxEntries": 200
+    "listMaxEntries": 200,
+    "inlineBinaryWriteMaxBytes": 262144
   },
   "rgPath": "auto",
   "fileBatches": {
     "maxFiles": 20,
-    "maxTotalBytes": 4194304
+    "maxTotalBytes": 4194304,
+    "binaryMaxTotalBytes": 134217728
   },
   "projectContext": {
     "maxDepth": 32,
@@ -96,5 +100,15 @@
   },
   "localPanel": {
     "port": 8767
+  },
+  "fileImports": {
+    "maxAttempts": 3,
+    "downloadTimeoutMs": 60000
+  },
+  "binaryInputs": {
+    "chunkMaxBytes": 65536,
+    "maxSessions": 4,
+    "maxCacheBytes": 67108864,
+    "ttlMs": 900000
   }
 }

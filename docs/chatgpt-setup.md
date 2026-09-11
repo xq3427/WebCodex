@@ -1,6 +1,6 @@
 # 将 WebCodex 接入 ChatGPT 网页
 
-本指南对应 0.14.0-preview.2、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。可选本机面板不参与连接，原文件自动上传功能暂停。
+本指南对应 0.16.0-preview.2、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。`connect` 默认同时启动本机配置控制中心，并输出带临时凭据的完整本机链接，可直接在页面管理本次连接。原生附件自动上传仍暂停；本地 PDF 文字层使用 document_open/document_read，生成文件回存默认使用 fs_write_binary_chunk/status，不需要 URL，均需实际宿主验收。
 
 连接路径是本机出站 HTTPS → OpenAI 隧道 → 本机官方客户端 → stdio MCP。不需要自建公网入口；本机、网络、客户端及你配置的代理需要保持运行。
 
@@ -20,7 +20,7 @@ node dist/src/cli.js doctor
 
 PowerShell 可用 `npm.cmd`。已有配置时跳过 `init`。默认使用 `.webcodex/config.toml`；每条命令均可加同一个 `--config /absolute/private/config.toml`。Windows 示例为 `D:/WebCodex/config.toml`。
 
-`doctor` 检查本机 Git、rg 等依赖并报告工作区状态，不证明云端已经连通。PATH 不同时可在配置填写本机 `nodePath/gitPath/rgPath`。详见[统一配置](local-configuration.md)。
+`doctor` 检查本机 Git、rg、PDF 组件清单与字节完整性，并报告工作区状态，不证明云端已经连通。PATH 不同时可在配置填写本机 `nodePath/gitPath/rgPath`。详见[统一配置](local-configuration.md)。
 
 ## 2. 安装官方客户端
 
@@ -32,11 +32,11 @@ Windows 提供安装脚本：
 .\scripts\install-tunnel.ps1
 ```
 
-可通过 `-Version vX.Y.Z -Architecture amd64` 固定实际存在的发行版与架构。安装位置为仓库 `.webcodex/tools/tunnel-client/`，不修改系统 PATH、不注册系统服务。脚本下载官方 release 资产、核对摘要并检查解压路径，保留许可报告和 SPDX 材料；未验证独立发布者签名。
+可通过 `-Version vX.Y.Z -Architecture amd64` 固定实际存在的发行版与架构。安装位置为所选配置的 `toolsDir/tunnel-client/`，不修改系统 PATH、不注册系统服务。脚本下载官方 release 资产、核对摘要并检查解压路径，保留许可报告和 SPDX 材料；未验证独立发布者签名。
 
 两种本机配置方式：
 
-- `clientPath = "auto"`：使用 `toolsDir/tunnel-client/install.json` 的安装记录，并复核版本、来源、架构和程序摘要。配置文件放在其他目录时，需要把 `toolsDir` 指向实际安装目录的 tools 根。
+- `clientPath = "auto"`：使用 `toolsDir/tunnel-client/install.json` 的安装记录，并复核版本、来源、架构和程序摘要。外置配置须在安装时传同一 `-Config`，例如 `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`。可先加 `-ResolveOnly` 仅查看安装位置；不会下载或修改配置。
 - 显式设置 `clientPath` 和 `clientSha256`：指定已下载的原生程序及完整 64 位 SHA-256，可用 `clientVersion` 固定版本。摘要须与可信官方发行材料核对；仅对未知文件自行算一次哈希不能证明其来源。
 
 Linux/macOS 当前需采用显式路径和摘要；没有这些平台的一键安装脚本。不要复制其他操作系统的二进制或安装记录。
@@ -74,17 +74,19 @@ node dist/src/cli.js connect --doctor-only
 node dist/src/cli.js connect
 ```
 
-前者验证配置、客户端并运行官方 doctor；后者再启动持久连接和 MCP 服务。不要另外启动使用同一 state 的 `serve`。
+前者验证隧道配置、客户端并运行官方 doctor，不启动控制中心；后者按 `server.transport` 启动 MCP 服务和本地控制中心。本指南的 stdio 模式启动官方隧道；配置为 HTTP 时启动本机接口，其就绪不代表 ChatGPT 已接入。终端 stderr 会在独立一行输出完整链接，例如 `http://127.0.0.1:8767/#token=...`，打开终端实际生成的完整地址即可管理配置和重启本次服务，不需要另外运行 `panel`。面板端口占用或与 HTTP 服务端口相同时，会临时选择空闲回环端口，不修改配置或关闭旧页面。链接只在本机使用，包含临时面板凭据，不是 API key，勿分享。
 
-终端保持运行是正常行为。启动提示区分本地检查、等待连接和实际健康证据；一个 SQLite ExperimentalWarning 不表示失败。连接后在 ChatGPT 开发者应用入口添加对应 Tunnel，并在对话启用。
+不需要页面时使用 `node dist/src/cli.js connect --no-panel`。单独 `panel` 只打开控制中心，不自动连接；底层 `serve` 不启动页面。旧版、`--no-panel` 或独立 `serve` 启动的服务仍需在原终端正常停止后，才能从页面重新启动并管理。不要另外启动使用同一 state 的 `serve`。
+
+终端保持运行是正常行为。连接检查或服务启动失败、发现外部实例时，控制中心保留供检查和修复，不接管外部服务；页面能打开不代表 ChatGPT 已连接。启动提示区分本地检查、等待连接和实际健康证据；一个 SQLite ExperimentalWarning 不表示失败。连接后在 ChatGPT 开发者应用入口添加对应 Tunnel，并在对话启用。
 
 先发送：
 
-> 使用 WebCodex，实际调用 system_status 和 workspace_list。确认版本为 0.14.0-preview.2，报告目标设备和工作区；读取我指定工作区的一个已知文本文件。不要仅凭应用详情判断工具可调用。
+> 使用 WebCodex，实际调用 system_status 和 workspace_list。确认版本为 0.15.0-preview.7，报告目标设备和工作区；读取我指定工作区的一个已知文本文件。不要仅凭应用详情判断工具可调用。
 
 再在指定的可写临时目录测试创建和读回，检查实际内容与 SHA-256。新文件使用 `expected_sha256: null`；已有文件必须先读哈希，不能直接覆盖。写入还需要核实后的 `expected_device_id` 与稳定操作键。详见[文件工作流](file-workflow.md)。
 
-注册集合为 44 项，其中 2 项仅组件使用。ChatGPT 当前对话可见列表可能不同；工具发现、MCP 响应、磁盘结果和网页显示应分别判断。
+注册集合为 60 项，其中 8 项仅组件使用；版本、工具数量和简短验收指令由[工具导出自动生成](current-acceptance.md)。ChatGPT 当前对话可见列表可能不同；工具发现、MCP 响应、磁盘结果和网页显示应分别判断。
 
 ## 5. 排错
 
@@ -108,6 +110,14 @@ node dist/src/cli.js diagnostics show
 不要仅凭 `not_running` 删除锁。需要在本机核实原启动器、相关客户端/daemon 和端口后处理残留。程序不会抢占另一启动器。
 
 健康结果是有界观测，不是 OS 级进程身份认证，也不是持续在线保证。成功工具响应计数可能包含业务失败，仍需核对 `ok/error` 和实际结果。诊断范围见[协议诊断](protocol-diagnostics.md)。
+
+### 对话提示 `Session terminated`
+
+这是连接／会话问题，不是分块大小或文件来源错误。先在本机运行 `node dist/src/cli.js tunnel status`，再检查 `node dist/src/cli.js diagnostics show` 的最近时间、工具和版本。如果连 `fs_stat` 都不可用，不要反复重传文件或改用导入接口。
+
+确认本机没有原启动器、客户端或 daemon，且没有活动作业后，可用原配置重新 `connect`；不要删除未经核实的启动锁。隧道恢复为在线、MCP 就绪后，先在对话调用 `system_status` 和 `fs_stat`。健康探针不能证明旧对话的会话仍有效；若仍提示终止，在 ChatGPT 重新连接应用后再做只读检查，并确认原图仍可访问。
+
+若断开前已经发送过写入或分块，先用原操作键查询 `operation_status` 或 `fs_write_binary_status`，不能仅凭会话报错认定“没有修改文件”。若只有只读调用且本机没有分块记录，则恢复连接后再开始传输；无法取得原文件字节时不能重生成或缩图替代。
 
 ## 升级已有 v2 配置
 

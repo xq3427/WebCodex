@@ -3,6 +3,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpServer } from './server.js';
 import type { App } from './app.js';
+import { inlineBinaryWriteLimit } from './binary-input.js';
+import { binaryChunkLimits } from './binary-limits.js';
 
 export async function startHttp(app:App,options:{token:string;port?:number}) {
   if(options.token.length<32)throw new Error('Local HTTP token must have at least 32 characters.');
@@ -23,7 +25,8 @@ export async function startHttp(app:App,options:{token:string;port?:number}) {
     inFlight++;
     let server:ReturnType<typeof createMcpServer>|undefined;
     try {
-      const limit=Math.min(25165824,app.config.limits.writeMaxBytes*6+65536);
+      const binaryBytes=Math.max(inlineBinaryWriteLimit(app.config.limits),binaryChunkLimits(app.config).chunkMaxBytes);
+      const limit=Math.min(25165824,Math.max(app.config.limits.writeMaxBytes*6+65536,Math.ceil(binaryBytes/3)*4+65536));
       const declared=Number(req.headers['content-length']??0);
       if(declared>limit){send(413,'Request too large.');req.resume();return;}
       const body=await readBody(req,limit);

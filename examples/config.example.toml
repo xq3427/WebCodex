@@ -38,6 +38,7 @@ onUnavailable = "error"
 
 [execution]
 mode = "disabled"
+commandPolicy = "all"
 maxConcurrent = 2
 maxTimeoutMs = 600000
 maxOutputBytes = 5242880
@@ -110,6 +111,9 @@ fileWidgetCacheMaxBytes = 33554432
 # Raw bytes per component chunk; default 64 KiB, range 4-256 KiB.
 fileWidgetChunkMaxBytes = 65536
 writeMaxBytes = 1048576
+# Exact-byte generated-file import; independent of text/MCP inline response limits.
+binaryWriteMaxBytes = 33554432
+inlineBinaryWriteMaxBytes = 262144
 searchMaxResults = 100
 listMaxEntries = 200
 
@@ -123,11 +127,16 @@ maxDepth = 32
 maxFileBytes = 65536
 maxTotalBytes = 262144
 
+[fileImports]
+maxAttempts = 3
+downloadTimeoutMs = 60000
+
 [fileBatches]
 # Distinct affected paths; a move counts both its source and destination.
 maxFiles = 20
 # Sum of before and after bytes across one batch; each file also obeys limits.writeMaxBytes.
 maxTotalBytes = 4194304
+binaryMaxTotalBytes = 134217728
 
 [tasks]
 maxTasksPerWorkspace = 100
@@ -162,3 +171,9 @@ transport = "stdio"
 enabled = true
 # Bounded event count: 20..10000. Other audit logs and backups have separate retention.
 maxEvents = 1000
+
+[binaryInputs]
+chunkMaxBytes = 65536
+maxSessions = 4
+maxCacheBytes = 67108864
+ttlMs = 900000

@@ -2,6 +2,8 @@
 
 **当前没有完成“通过纯 MCP 自动上传本地 PDF/Office 原文件，让 ChatGPT 像原生附件一样直接分析正文”的功能。** 此方向已暂停。
 
+`0.15.0-preview.1` 新增不同的数据路径：`document_open/read` 自动将完整 PDF 传入组件，在浏览器运行 PDF.js，再以普通 MCP 工具回传分页文字层。它不等同于原生附件，也不支持图像、OCR 或 Office。使用与验收边界见 [PDF 正文原型](pdf-reading-prototype.md)。以下保留工具的限制不应套用于新正文工具。
+
 ## 保留的工具
 
 | 工具 | 实际作用 | 不代表什么 |
@@ -26,4 +28,4 @@
 
 ChatGPT 原生手工附件是另外一条宿主能力，可自行使用；它不算 WebCodex 自动上传目标已经完成。本项目当前不安装浏览器扩展、不控制浏览器，也不启动 Actions 或公网代理。
 
-SVG、HTML、Markdown、XML 和代码本身是文本，可以直接用 `fs_write` 保存并读回，见[文件工作流](file-workflow.md)。ChatGPT 生成的 PDF/PNG/ZIP 等二进制产物目前没有专用自动回存工具。
+SVG、HTML、Markdown、XML 和代码本身是文本，可以直接用 `fs_write` 保存并读回，见[文件工作流](file-workflow.md)。从 `0.15.0-preview.5` 起，`fs_import_file` 可接收 ChatGPT 官方文件参数，保存 PPTX/PDF/PNG/ZIP 等完整原字节，再用 `fs_stat` 核对。它的方向是 **ChatGPT 文件 → 本机**，不改变本文的本机文档上传与模型正文读取边界。真实生成附件交接仍待宿主验收，详见[生成文件回存](file-writeback.md)。

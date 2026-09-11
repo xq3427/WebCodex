@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const decoder = new TextDecoder('utf-8', { fatal: true });
+// Only this reviewed, synthetic fixture may bypass ordinary text scanning.
+const syntheticPdfSha256 = 'f5229259a5fc167ced2f2c0045d1ca574314302ab09d495186c8d33f968d45f8';
 const forbidden = /(^|\/)(?:\.webcodex|\.codex|\.agents|node_modules|dist|research|experiments|coverage)(\/|$)|(^|\/)(?:config\.(?:json|toml)|\.env(?:\..*)?|API_key\.txt|api[-_]?key\.txt|credentials\.json|secrets\.json|\.npmrc|\.pypirc|\.netrc|id_rsa|id_ed25519)$|\.(?:local\.(?:json|toml)|log|pem|key|pfx|p12|sqlite(?:-.+)?|db(?:-.+)?)$/i;
 
 export function scanText(file, text) {
@@ -12,12 +15,11 @@ export function scanText(file, text) {
   const rules = [
     ['credential-token', /\b(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[A-Z0-9]{16})\b/g],
     ['private-key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/g],
+    ['live-tunnel-identity', /\btunnel_[a-f0-9]{32}\b/gi],
     ['personal-windows-path', /[A-Za-z]:[\\/]+Users[\\/]+(?!Public\b|Default\b|example\b)[^\s"'\x60/\\]+/gi],
     ['private-network-endpoint', /(?:https?:\/\/|@)172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}/g],
   ];
   for (const [rule, regex] of rules) {
-    // Test source intentionally exercises platform path syntax and synthetic private networks.
-    if (file.startsWith('test/') && ['personal-windows-path', 'private-network-endpoint'].includes(rule)) continue;
     for (const match of text.matchAll(regex)) {
       if (file === 'test/unified-integration.test.ts' && rule === 'credential-token' &&
           match[0] === ['sk', 'synthetic-unified-config-never-output-123456'].join('-')) continue;
@@ -25,6 +27,11 @@ export function scanText(file, text) {
     }
   }
   return findings;
+}
+
+export function isReviewedSyntheticPdf(bytes) {
+  return bytes.subarray(0, 5).equals(Buffer.from('%PDF-')) &&
+    createHash('sha256').update(bytes).digest('hex') === syntheticPdfSha256;
 }
 
 export function forbiddenPath(file) {
@@ -66,7 +73,7 @@ export function auditRepository() {
     if (info.size > 1024 * 1024) { findings.push({ file, rule: 'large-file-review-required' }); continue; }
     const bytes = readFileSync(full);
     if (file === 'test/fixtures/webcodex-reading-check.pdf') {
-      if (!bytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) findings.push({ file, rule: 'invalid-synthetic-pdf' });
+      if (!isReviewedSyntheticPdf(bytes)) findings.push({ file, rule: 'unreviewed-synthetic-pdf' });
       continue;
     }
     let text;

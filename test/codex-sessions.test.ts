@@ -207,7 +207,7 @@ test('real stdio MCP client can discover, read and prepare local Codex continuat
   try {
     await client.connect(transport);
     assert.equal(client.getServerVersion()?.version, VERSION);
-    assert.equal((await client.listTools()).tools.length, 44);
+    assert.equal((await client.listTools()).tools.length, 65);
     for (const name of ['codex_session_list', 'codex_session_read', 'codex_session_handoff']) {
       const result = await client.callTool({ name, arguments: name === 'codex_session_list' ? {} : { session_id: ID } });
       assert.equal(result.isError, undefined);

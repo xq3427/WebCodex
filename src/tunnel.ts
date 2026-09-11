@@ -27,7 +27,38 @@ export interface TunnelStatus {
   successful_tool_calls?: number; last_error_category?: string;
 }
 export type TunnelProgressEvent = { type:'phase'; phase:TunnelProgressPhase } | { type:'status'; status:TunnelStatus };
+export interface TunnelRunOptions {
+  doctorOnly?: boolean;
+  onProgress?: (event: TunnelProgressEvent) => void;
+  /** Cancellation targets only the child owned by this invocation. */
+  signal?: AbortSignal;
+  /** Embedded launchers own application signals instead of installing per-child handlers. */
+  registerSignalHandlers?: boolean;
+  /** An embedded manager can bind startup to the saved configuration it displays. */
+  expectedConfigRevision?: string;
+}
 const safeError = (code: string, message: string) => new AppError(code, message);
+const cancelled = () => safeError('TUNNEL_CANCELLED', 'The locally owned tunnel launch was cancelled.');
+function checkCancelled(signal?: AbortSignal) { if (signal?.aborted) throw cancelled(); }
+export async function assertTunnelConfigRevision(configPath: string, expected?: string) {
+  if (expected === undefined) return;
+  const conflict = () => safeError('CONFIG_CONFLICT', 'The saved configuration changed during service startup. Reload its current revision and start again.');
+  if (!/^[a-f0-9]{64}$/.test(expected)) throw conflict();
+  try {
+    await plainPath(configPath, 'file');
+    const before = await lstat(configPath, { bigint: true });
+    if (before.size > 1048576n) throw conflict();
+    const handle = await open(configPath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    try {
+      const opened = await handle.stat({ bigint: true });
+      if (opened.ino !== before.ino || opened.mtimeNs !== before.mtimeNs || opened.size !== before.size) throw conflict();
+      const bytes = await handle.readFile();
+      const after = await lstat(configPath, { bigint: true });
+      if (after.isSymbolicLink() || after.nlink !== 1n || after.ino !== before.ino || after.size !== before.size ||
+        after.mtimeNs !== before.mtimeNs || createHash('sha256').update(bytes).digest('hex') !== expected) throw conflict();
+    } finally { await handle.close(); }
+  } catch { throw conflict(); }
+}
 const invalid = () => safeError('TUNNEL_CONFIG_INVALID', 'Configure the tunnel ID, API key, proxy and client in the unified local configuration. Legacy credential files and environment fallback are not used.');
 const denied = () => safeError('TUNNEL_CLIENT_INVALID', 'The tunnel client path, installation source or SHA-256 could not be verified. Reinstall the official client or configure an explicit clientPath and clientSha256.');
 const unsafePath = () => safeError('TUNNEL_PATH_INVALID', 'Tunnel control paths must be absolute, ordinary local paths without links, quotes or control characters.');
@@ -127,11 +158,13 @@ function commandArgument(value: string): string {
 }
 
 async function execute(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv,
-  timeoutMs?: number, captureVersion = false): Promise<{ code: number; output: string }> {
+  timeoutMs?: number, captureVersion = false, options: TunnelRunOptions = {}): Promise<{ code: number; output: string }> {
+  checkCancelled(options.signal);
   return new Promise((resolve, reject) => {
     let settled = false;
     let timedOut = false;
     let interruption: NodeJS.Signals | undefined;
+    let aborted = false;
     let output = '';
     // Raw diagnostics can contain credentials supplied by a remote error response.
     // Only --version is captured (without credentials); doctor/run output is discarded.
@@ -142,27 +175,34 @@ async function execute(command: string, args: string[], cwd: string, env: NodeJS
     };
     const onInt = () => stop('SIGINT');
     const onTerm = () => stop('SIGTERM');
-    process.on('SIGINT', onInt);
-    process.on('SIGTERM', onTerm);
+    const onAbort = () => { aborted = true; stop('SIGTERM'); };
+    if (options.registerSignalHandlers !== false) {
+      process.on('SIGINT', onInt);
+      process.on('SIGTERM', onTerm);
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    if (options.signal?.aborted) onAbort();
     const timer = timeoutMs === undefined ? undefined : setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, timeoutMs);
-    const cleanup = () => { clearTimeout(timer); process.off('SIGINT', onInt); process.off('SIGTERM', onTerm); };
+    const cleanup = () => { clearTimeout(timer); process.off('SIGINT', onInt); process.off('SIGTERM', onTerm); options.signal?.removeEventListener('abort', onAbort); };
     child.stdout?.on('data', (buffer: Buffer) => { if (output.length < 8192) output += buffer.toString('utf8').slice(0, 8192 - output.length); });
     child.once('error', () => {
       if (settled) return;
       settled = true; cleanup();
-      reject(safeError('TUNNEL_START_FAILED', 'The verified tunnel client could not be started. Check its platform and local executable permissions.'));
+      reject(aborted ? cancelled() : safeError('TUNNEL_START_FAILED', 'The verified tunnel client could not be started. Check its platform and local executable permissions.'));
     });
     child.once('close', (code, signal) => {
       if (settled) return;
       settled = true; cleanup();
-      if (timedOut) reject(safeError('TUNNEL_DOCTOR_TIMEOUT', 'The local tunnel client validation timed out.'));
+      if (aborted) reject(cancelled());
+      else if (timedOut) reject(safeError('TUNNEL_DOCTOR_TIMEOUT', 'The local tunnel client validation timed out.'));
       else resolve({ code: interruption === 'SIGINT' ? 130 : interruption === 'SIGTERM' ? 143 : code ?? (signal === 'SIGINT' ? 130 : 1), output });
     });
   });
 }
 
 /** Launch only from the unified config; this function never opens a WebCodex SQLite store. */
-export async function runTunnel(config: TunnelConfig, options: { doctorOnly?: boolean; onProgress?:(event:TunnelProgressEvent)=>void } = {}): Promise<TunnelRunResult> {
+export async function runTunnel(config: TunnelConfig, options: TunnelRunOptions = {}): Promise<TunnelRunResult> {
+  checkCancelled(options.signal);
   const report = (event:TunnelProgressEvent) => {try{options.onProgress?.(event);}catch{/* An observer cannot alter the tunnel lifecycle. */}};
   report({type:'phase',phase:'checking'});
   const settings = config.tunnel;
@@ -199,6 +239,7 @@ export async function runTunnel(config: TunnelConfig, options: { doctorOnly?: bo
     catch (missing) { if ((missing as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }
   const lockFile = path.join(controlDirectory, 'launcher.lock');
+  checkCancelled(options.signal);
   let lock;
   try { lock = await open(lockFile, 'wx', 0o600); }
   catch (error) {
@@ -210,7 +251,12 @@ export async function runTunnel(config: TunnelConfig, options: { doctorOnly?: bo
   const owner = randomUUID();
   try {
     await lock.writeFile(JSON.stringify({ pid: process.pid, owner, started_at: new Date().toISOString() }) + '\n');
-    const command = [commandArgument(node), commandArgument(cliPath), 'serve', '--config', commandArgument(configPath), '--transport', 'stdio'].join(' ');
+    checkCancelled(options.signal);
+    if (options.expectedConfigRevision !== undefined && !/^[a-f0-9]{64}$/.test(options.expectedConfigRevision)) {
+      throw safeError('CONFIG_CONFLICT', 'Reload the current saved configuration revision before starting.');
+    }
+    const command = [commandArgument(node), commandArgument(cliPath), 'serve', '--config', commandArgument(configPath), '--transport', 'stdio',
+      ...(options.expectedConfigRevision ? ['--expected-config-revision', options.expectedConfigRevision] : [])].join(' ');
     const args = [
       '--control-plane.base-url', 'https://api.openai.com', '--control-plane.tunnel-id', settings.id,
       '--control-plane.api-key', 'env:CONTROL_PLANE_API_KEY', '--mcp.command', command,
@@ -220,13 +266,14 @@ export async function runTunnel(config: TunnelConfig, options: { doctorOnly?: bo
     if (settings.proxyUrl) args.push('--control-plane.http-proxy', settings.proxyUrl);
     const cwd = path.dirname(configPath);
     if (installed.source === 'configured_sha256' && settings.clientVersion && settings.clientVersion !== 'auto') {
-      const version = await execute(installed.client, ['--version'], cwd, childEnvironment(), 10_000, true);
+      const version = await execute(installed.client, ['--version'], cwd, childEnvironment(), 10_000, true, options);
       const observed = /(?:^|\s)v?(\d+\.\d+\.\d+)(?:[+\s]|$)/.exec(version.output);
       if (version.code !== 0 || !observed || `v${observed[1]}` !== settings.clientVersion) throw denied();
     }
     const result = { doctor_only: !!options.doctorOnly, exit_code: 0, health_url_file: healthFile, client_source: installed.source };
     report({type:'phase',phase:'doctor'});
-    const doctor = await execute(installed.client, ['doctor', ...args, '--explain'], cwd, childEnvironment(settings.apiKey), 30_000);
+    await assertTunnelConfigRevision(configPath, options.expectedConfigRevision);
+    const doctor = await execute(installed.client, ['doctor', ...args, '--explain'], cwd, childEnvironment(settings.apiKey), 30_000, false, options);
     if (doctor.code === 130 || doctor.code === 143) return { ...result, exit_code: doctor.code };
     if (doctor.code !== 0) throw safeError('TUNNEL_DOCTOR_FAILED', 'The tunnel client configuration check failed. Verify the unified configuration and client compatibility; no raw diagnostics were printed.');
     if (options.doctorOnly) {report({type:'phase',phase:'validated'});return result;}
@@ -251,7 +298,10 @@ export async function runTunnel(config: TunnelConfig, options: { doctorOnly?: bo
     };
     if(options.onProgress)timer=setTimeout(poll,1000);
     let running:{code:number;output:string};
-    try {running=await execute(installed.client, ['run', ...args], cwd, childEnvironment(settings.apiKey));}
+    try {
+      await assertTunnelConfigRevision(configPath, options.expectedConfigRevision);
+      running=await execute(installed.client, ['run', ...args], cwd, childEnvironment(settings.apiKey), undefined, false, options);
+    }
     finally {active=false;clearTimeout(timer);await pending;}
     if (running.code !== 0 && running.code !== 130 && running.code !== 143) throw safeError('TUNNEL_EXITED', 'The tunnel client exited unsuccessfully. Inspect local health status and the unified configuration.');
     report({type:'phase',phase:'stopped'});

@@ -21,7 +21,12 @@ import { runTunnel, readTunnelStatus } from './tunnel.js';
 import { configureExecutionPreset, inspectExecution } from './execution-admin.js';
 import { createTunnelProgressReporter } from './tunnel-progress.js';
 import { readMcpDiagnostics } from './mcp-diagnostics.js';
-import { startLocalPanel } from './local-panel.js';
+import { startLocalPanel, loadPanelViewConfig } from './local-panel.js';
+import { PanelConfigService } from './panel-config.js';
+import { PanelRuntime } from './panel-runtime.js';
+import { startManagedPanel } from './panel-launcher.js';
+import { readConfigDocument } from './config-admin.js';
+import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
@@ -38,9 +43,9 @@ const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   workspace health [--config PATH]
   workspace disable --id ID [--config PATH]
   workspace enable --id ID [--config PATH]
-  connect [--doctor-only] [--config PATH]
+  connect [--doctor-only] [--no-panel] [--config PATH]
   tunnel status [--config PATH]
-  panel [--config PATH]
+  panel [--config PATH] [--port PORT]
   workspace rebind --id ID --root PATH [--name NAME] [--read-only] [--worktree] [--new-identity] [--config PATH]
   workspace list [--config PATH]
   workspace add --id ID --root ABSOLUTE_PATH [--name NAME] [--read-only] [--worktree] [--config PATH]
@@ -63,7 +68,8 @@ workspace rebind generates a new workspace UID when the root changes and preserv
 --worktree records verified Git metadata for an explicitly authorized linked worktree.
 execution preset registers a native command without enabling execution.
 init never overwrites existing configuration; command execution starts disabled.
-Config edits require a manual service restart; workspace remove never deletes files.
+Config edits require a service restart; the local panel can restart its managed connection.
+workspace remove never deletes files.
 codex enable grants dedicated read-only tools access to local Codex session history.
 Without --home, it preserves a configured home, then uses CODEX_HOME or ~/.codex.
 trusted-host executes with the local owner's permissions; it is not an OS sandbox.
@@ -72,12 +78,14 @@ stdio is recommended for OpenAI Secure MCP Tunnel.
 v2 transport and HTTP bearer token are read from the selected configuration.
 http binds only 127.0.0.1.
 This local token is not a public ChatGPT OAuth implementation.
-panel starts a local-only status and original-file handoff page on 127.0.0.1.
+panel starts the local configuration and service dashboard on 127.0.0.1.
 Its short-lived launch URL is printed once; keep it on this device.
-Automatic PDF/Office attachment is deferred. The optional panel offers manual handoff only.
+connect starts the configured service and prints a private dashboard link in the terminal.
+Use connect --no-panel for the original foreground tunnel lifecycle; --doctor-only never starts a dashboard.
+The dashboard manages only connections it starts; older or --no-panel connections need a one-time handoff.
 `;
 async function main() {
-  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{config:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'}}});
+  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{'expected-config-revision':{type:'string'},config:{type:'string'},port:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'},'no-panel':{type:'boolean'}}});
   const options = tokens.filter(token => token.kind === 'option').map(token => token.name);
   for (const option of options) if (option !== 'prefix-arg' && options.filter(name => name === option).length > 1) throw new AppError('CLI_ERROR','Option --'+option+' may only be supplied once.');
   const command=positionals[0];
@@ -85,11 +93,11 @@ async function main() {
   const action = positionals[1];
   const key = ['workspace', 'execution', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
   const commandOptions: Record<string, { count:number; options:string[] }> = {
-    init:{count:1,options:['workspace']},doctor:{count:1,options:[]},serve:{count:1,options:['transport']},
+    init:{count:1,options:['workspace']},doctor:{count:1,options:[]},serve:{count:1,options:['transport','expected-config-revision']},
     'config show':{count:2,options:[]},'workspace list':{count:2,options:[]},
     'diagnostics show':{count:2,options:[]},
-    connect:{count:1,options:['doctor-only']},'tunnel status':{count:2,options:[]},
-    panel:{count:1,options:[]},'actions-probe disable':{count:2,options:[]},
+    connect:{count:1,options:['doctor-only','no-panel']},'tunnel status':{count:2,options:[]},
+    panel:{count:1,options:['port']},'actions-probe disable':{count:2,options:[]},
     'config validate':{count:2,options:[]},'config export':{count:2,options:['output']},
     'config migrate':{count:2,options:['output','legacy-auth','legacy-connect','apply']},
     'device show':{count:2,options:[]},'device rename':{count:2,options:['name']},
@@ -140,13 +148,42 @@ async function main() {
   if(key==='diagnostics show'){const config=await loadConfig(configPath,{workspaceDiagnostics:true});print({ok:true,...readMcpDiagnostics(config)});return;}
   if(key==='actions-probe disable'){print(await disableActionsProbe(configPath));return;}
   if(command==='panel'){
-    const config=await loadConfig(configPath,{workspaceDiagnostics:true});
-    const listener=await startLocalPanel(config);
-    installLocalPanelShutdown(listener.close);
-    print({ok:true,url:listener.url,local_only:true,notice:'Open this short-lived URL on this device. Keep the process running; Ctrl+C closes the local panel.'});
+    const config=await loadPanelViewConfig(configPath);
+    const port = values.port === undefined ? undefined : Number(values.port);
+    if (port !== undefined && (!/^\d+$/.test(values.port!) || !Number.isInteger(port) || port < 1024 || port > 65535)) throw new AppError('CLI_ERROR','Use a local panel port from 1024 to 65535.');
+    const manager = new PanelRuntime(configPath);
+    const listener=await startLocalPanel(config,{port,management:{config:new PanelConfigService(configPath),runtime:manager}});
+    installLocalPanelShutdown(async()=>{await manager.close();await listener.close();});
+    print({ok:true,url:listener.url,local_only:true,management:true,notice:'Open this private local dashboard to edit configuration and manage its connection. Keep this process running.'});
     return;
   }
-  const config=await loadConfig(configPath);
+  const panelChild = command === 'serve' && process.connected && process.env.WEBCODEX_PANEL_CONFIG_REVISION !== undefined;
+  let panelStopRequested = false;
+  let panelShutdown: (() => Promise<void>) | undefined;
+  const panelStop = async () => {
+    panelStopRequested = true;
+    if (!panelShutdown) return;
+    await panelShutdown();
+    if (process.connected) process.disconnect();
+  };
+  if (panelChild) {
+    process.on('message', message => {
+      if (message && typeof message === 'object' && 'type' in message && message.type === 'webcodex_panel_shutdown') void panelStop().catch(() => { process.exitCode = 1; });
+    });
+    process.once('disconnect', () => { void panelStop().catch(() => { process.exitCode = 1; }); });
+  }
+  const config = await (async () => {
+    const expectedRevision = values['expected-config-revision'] ?? (panelChild ? process.env.WEBCODEX_PANEL_CONFIG_REVISION : undefined);
+    if (expectedRevision === undefined) return loadConfig(configPath);
+    const revision = expectedRevision;
+    if (!/^[a-f0-9]{64}$/.test(revision)) throw new AppError('CONFIG_CONFLICT','Invalid managed configuration revision.');
+    const document = await readConfigDocument(configPath);
+    if (document.revision !== revision) throw new AppError('CONFIG_CONFLICT','Configuration changed before service startup. Reload and start again.');
+    const loaded = await validateConfig(document.raw, document.fullPath);
+    if (panelChild && loaded.server?.transport !== 'http') throw new AppError('CONFIG_ERROR','The managed IPC launcher requires HTTP transport.');
+    return loaded;
+  })();
+  if (panelChild && (panelStopRequested || !process.connected)) { if (process.connected) process.disconnect(); return; }
   if(key==='execution inspect'){print(await inspectExecution(config));return;}
   if(key==='config validate'){print({ok:true,config:configPath,version:config.version,device_id:config.device?.id??null});return;}
   if(key==='device show'){print({ok:true,device:config.device??null,platform:process.platform,legacy:config.version===1});return;}
@@ -159,6 +196,11 @@ async function main() {
   }
   if(key==='tunnel status'){const result=await readTunnelStatus(config);print(result);process.exitCode=result.exit_code;return;}
   if(command==='connect'){
+    if (config.version === 2 && !values['doctor-only'] && !values['no-panel']) {
+      const listener = await startManagedPanel(config, { autoStart: true, fallbackPort: true, write: line => process.stderr.write(line) });
+      installLocalPanelShutdown(listener.close);
+      return;
+    }
     const progress=createTunnelProgressReporter(line=>process.stderr.write(line));
     try {
       const result=await runTunnel(config,{doctorOnly:values['doctor-only'],onProgress:event=>event.type==='phase'?progress.phase(event.phase):progress.observe(event.status)});
@@ -169,7 +211,10 @@ async function main() {
     const [git,rgProbe]=await Promise.all([probe(config.gitPath??'git',['--version']),probe(config.rgPath,['--version'])]);
     const rg={...rgProbe,configured_path:config.rgPath,...(!rgProbe.available?{remediation:'Install ripgrep or set rgPath in the configuration to the absolute path of an installed rg.exe (rg on other platforms). The tunnel process must be able to run that executable.'}:{})};
     const workspaces=await Promise.all(config.workspaces.map(async w=>{const health=workspaceHealth(config,w);let writable=false;if(health.available&&!w.readOnly)try{await access(w.root,constants.W_OK);writable=true;}catch{}return{workspace_id:w.id,exists:health.available?true:health.status==='missing'?false:null,enabled:w.enabled!==false,read_only:w.readOnly,writable,...health};}));
-    const result={ok:git.available && rg.available,version:VERSION,device:config.device,node:process.version,mcp_sdk:'1.30.0',git,rg,workspaces,execution_mode:config.execution.mode,executable_aliases:Object.keys(config.execution.allowedExecutables),connection:'Local checks only; ChatGPT negotiation must be verified separately.',config:configPath};
+    let document_widget: {ok:boolean;[key:string]:unknown};
+    try { document_widget={ok:true,...inspectDocumentWidgetAsset()}; }
+    catch { document_widget={ok:false,code:'DOCUMENT_WIDGET_ASSET_INVALID',remediation:'Run npm run build successfully before restarting this release.'}; }
+    const result={ok:git.available && rg.available && document_widget.ok,version:VERSION,device:config.device,node:process.version,mcp_sdk:'1.30.0',git,rg,workspaces,document_widget,execution_mode:config.execution.mode,executable_aliases:Object.keys(config.execution.allowedExecutables),connection:'Local checks only; ChatGPT negotiation must be verified separately.',config:configPath};
     process.stdout.write(JSON.stringify(result,null,2)+'\n');if(!result.ok)process.exitCode=1;return;
   }
   const transport=config.version===2?(config.server?.transport??'stdio'):(values.transport??'stdio');
@@ -177,8 +222,8 @@ async function main() {
   if(transport!=='stdio' && transport!=='http')throw new AppError('CLI_ERROR','transport must be stdio or http.');
   const app=new App(config);
   let cleanupTransport=async()=>{};
-  let stopping=false;
-  const shutdown=async()=>{if(stopping)return;stopping=true;try{await cleanupTransport();}finally{await app.close();}};
+  let shutdownPromise: Promise<void> | undefined;
+  const shutdown=()=>shutdownPromise??=(async()=>{try{await cleanupTransport();}finally{await app.close();}})();
   process.once('SIGINT',()=>{void shutdown().then(()=>{process.exitCode=0;});});
   process.once('SIGTERM',()=>{void shutdown().then(()=>{process.exitCode=0;});});
   try { if(transport==='stdio'){
@@ -197,6 +242,11 @@ async function main() {
     const listener=await startHttp(app,{token});
     cleanupTransport=listener.close;
     process.stderr.write('WebCodex MCP ready at '+listener.url+'; bearer token loaded locally.\n');
+    if (panelChild) {
+      panelShutdown = shutdown;
+      if (panelStopRequested || !process.connected) await panelStop();
+      else process.send?.({type:'webcodex_panel_ready'}, () => {});
+    }
   }
   } catch(error) { await shutdown(); throw error; }
 }
@@ -206,7 +256,7 @@ function installLocalPanelShutdown(close:()=>Promise<void>) {
     if(stopping)return;
     stopping=true;
     try {await close();process.exitCode??=0;}
-    catch {process.stderr.write(JSON.stringify(errorResult(new AppError('LOCAL_PANEL_SHUTDOWN_FAILED','The local panel did not close cleanly.')))+'\n');process.exitCode=1;}
+    catch {stopping=false;process.stderr.write(JSON.stringify(errorResult(new AppError('LOCAL_PANEL_SHUTDOWN_FAILED','The local panel is still open. Wait for active jobs to finish and stop its connection from the dashboard, then retry.')))+'\n');}
   };
   const onSignal=()=>{void shutdown();};
   process.on('SIGINT',onSignal);
@@ -226,4 +276,8 @@ main().catch(error=>{
   const failure = typeof error?.code === 'string' && error.code.startsWith('ERR_PARSE_ARGS_')
     ? new AppError('CLI_ERROR', 'Invalid command-line arguments. Use --help.') : error;
   process.stderr.write(JSON.stringify(errorResult(failure))+'\n');process.exitCode=1;
+  if (process.connected && process.env.WEBCODEX_PANEL_CONFIG_REVISION !== undefined) {
+    const code = failure instanceof AppError && ['CONFIG_CONFLICT','CONFIG_ERROR','HTTP_START_FAILED'].includes(failure.code) ? failure.code : 'PANEL_RUNTIME_FAILED';
+    process.send?.({type:'webcodex_panel_failed',code}, () => { if (process.connected) process.disconnect(); });
+  }
 });

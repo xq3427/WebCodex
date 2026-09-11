@@ -14,11 +14,12 @@ export type FileBatchChange =
   | { op: 'write'; path: string; content: string; expected_sha256: string | null }
   | { op: 'patch'; path: string; patch: string; expected_sha256: string }
   | { op: 'delete'; path: string; expected_sha256: string }
-  | { op: 'move'; path: string; to: string; expected_sha256: string };
+  | { op: 'move' | 'copy'; path: string; to: string; expected_sha256: string };
 type BatchInput = { workspace_id: string; changes: FileBatchChange[] };
-type Step = { index: number; change_index: number; path: string; absolute: string; before: Buffer | null; after: Buffer | null; before_mode: number | null; after_mode: number | null; change_id: string | null };
+type WriteKind = 'text' | 'bytes';
+type Step = { index: number; change_index: number; path: string; absolute: string; before: Buffer | null; after: Buffer | null; before_mode: number | null; after_mode: number | null; change_id: string | null; write_kind: WriteKind; copy_source?: Step };
 type BatchRow = { id: string; workspace_id: string; workspace_binding: string; operation_key: string; plan_sha256: string; status: string; summary: string; result: string | null; created_at: string; finished_at: string | null };
-type StepRow = { step_index: number; change_index: number; path: string; before_sha256: string | null; after_sha256: string | null; before_mode: number | null; after_mode: number | null; change_id: string | null; status: string; error_code: string | null; rollback_change_id: string | null };
+type StepRow = { step_index: number; change_index: number; path: string; before_sha256: string | null; after_sha256: string | null; before_mode: number | null; after_mode: number | null; change_id: string | null; status: string; error_code: string | null; rollback_change_id: string | null; write_kind: WriteKind | null };
 const sha = (bytes: Buffer | null) => bytes === null ? null : hash(bytes);
 const stateNote = 'Files are changed sequentially with precondition checks and conditional rollback. This is not an OS-atomic transaction; unrelated processes do not share the service locks.';
 const validSha = (value: unknown, absent = false) => (absent && value === null) || (typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value));
@@ -51,10 +52,18 @@ export class FileBatchService {
     UPDATE file_batches SET status='unknown' WHERE status IN ('prepared','applying','rolling_back');`);
     const columns = new Set(ctx.store.db.prepare('PRAGMA table_info(file_batch_steps)').all().map(row => row.name));
     for (const column of ['before_mode', 'after_mode']) if (!columns.has(column)) ctx.store.db.exec(`ALTER TABLE file_batch_steps ADD COLUMN ${column} INTEGER`);
+    if (!columns.has('write_kind')) ctx.store.db.exec('ALTER TABLE file_batch_steps ADD COLUMN write_kind TEXT');
   }
 
   private limits() {
-    return this.ctx.config.fileBatches ?? { maxFiles: 20, maxTotalBytes: 4_194_304 };
+    return { maxFiles: this.ctx.config.fileBatches?.maxFiles ?? 20, maxTotalBytes: this.ctx.config.fileBatches?.maxTotalBytes ?? 4_194_304,
+      binaryMaxTotalBytes: this.ctx.config.fileBatches?.binaryMaxTotalBytes ?? 134_217_728 };
+  }
+
+  private perFileLimit(kind: WriteKind) { return kind === 'bytes' ? this.ctx.config.limits.binaryWriteMaxBytes ?? 33_554_432 : this.ctx.config.limits.writeMaxBytes; }
+  private stepKind(step: Pick<StepRow, 'write_kind'>): WriteKind {
+    if (step.write_kind !== null && step.write_kind !== 'text' && step.write_kind !== 'bytes') throw new AppError('CHANGE_CORRUPT', 'Saved batch write kind is invalid.');
+    return step.write_kind ?? 'text';
   }
 
   private relative(workspaceId: string, absolute: string) {
@@ -72,18 +81,18 @@ export class FileBatchService {
     const paths = new Set<string>();
     const items: { change: FileBatchChange; absolute: string; relative: string; destination?: string; to?: string }[] = [];
     for (const change of input.changes) {
-      if (!change || !['write', 'patch', 'delete', 'move'].includes(change.op) || !validSha(change.expected_sha256, change.op === 'write')) throw new AppError('INVALID_ARGUMENT', 'Each change requires a supported op and an original file SHA-256; only write may use null for an absent file.');
+      if (!change || !['write', 'patch', 'delete', 'move', 'copy'].includes(change.op) || !validSha(change.expected_sha256, change.op === 'write')) throw new AppError('INVALID_ARGUMENT', 'Each change requires a supported op and an original file SHA-256; only write may use null for an absent file.');
       if (change.op === 'write' && (typeof change.content !== 'string' || Buffer.byteLength(change.content) > this.ctx.config.limits.writeMaxBytes)) throw new AppError('FILE_TOO_LARGE', 'A write content exceeds its byte limit or is not text.');
       if (change.op === 'patch') assertPatchInputSize(change.patch, this.ctx.config.limits.writeMaxBytes);
       // Missing sources are checked by SHA during preparation. Allow resolution here so
       // a completed delete/move can replay its idempotent receipt after the source is gone.
       const absolute = await this.canonicalPath(await this.ctx.paths.resolve(input.workspace_id, change.path, { allowMissing: true, write }));
-      const destination = change.op === 'move' ? await this.canonicalPath(await this.ctx.paths.resolve(input.workspace_id, change.to, { allowMissing: true, write })) : undefined;
+      const destination = change.op === 'move' || change.op === 'copy' ? await this.canonicalPath(await this.ctx.paths.resolve(input.workspace_id, change.to, { allowMissing: true, write })) : undefined;
       for (const name of [absolute, ...(destination ? [destination] : [])]) {
-        if (paths.has(key(name))) throw new AppError('BATCH_PATH_CONFLICT', 'Each normalized path may appear only once, including move sources and destinations; chained changes are not supported.');
+        if (paths.has(key(name))) throw new AppError('BATCH_PATH_CONFLICT', 'Each normalized path may appear only once, including move/copy sources and destinations; chained changes are not supported.');
         paths.add(key(name));
       }
-      if (paths.size > limit.maxFiles) throw new AppError('BATCH_TOO_LARGE', 'The batch exceeds the configured path count; a move counts as two paths.');
+      if (paths.size > limit.maxFiles) throw new AppError('BATCH_TOO_LARGE', 'The batch exceeds the configured path count; a move or copy counts as two paths.');
       items.push({ change, absolute, relative: this.relative(input.workspace_id, absolute), destination, to: destination ? this.relative(input.workspace_id, destination) : undefined });
     }
     return { items, paths: items.flatMap(item => [item.absolute, ...(item.destination ? [item.destination] : [])]) };
@@ -99,42 +108,50 @@ export class FileBatchService {
     const binding = identity.workspaceIdentity(input.workspace_id);
     const steps: Step[] = [];
     const items = [];
-    let total = 0;
+    let total = 0, textTotal = 0;
+    const policy = { ...this.limits(), writeMaxBytes: this.perFileLimit('text'), binaryWriteMaxBytes: this.perFileLimit('bytes') };
+    const hasBytes = resolved.items.some(item => ['delete', 'move', 'copy'].includes(item.change.op));
+    const totalLimit = hasBytes ? policy.binaryMaxTotalBytes : policy.maxTotalBytes;
     for (const [index, item] of resolved.items.entries()) {
       const { change, absolute, relative, destination, to } = item;
-      const before = await this.files.snapshotForBatch(absolute);
+      const writeKind: WriteKind = change.op === 'write' || change.op === 'patch' ? 'text' : 'bytes';
+      const before = await this.files.snapshotForBatch(absolute, this.perFileLimit(writeKind), writeKind);
       this.assertHash(before, change.expected_sha256, relative);
       const beforeMode = await this.files.modeForBatch(absolute);
       let after: Buffer | null;
       if (change.op === 'write') after = encode(change.content, before === null ? { encoding: 'utf8', bom: false, newline: 'none' } : decode(before).format);
       else if (change.op === 'patch') after = preparePatchedBytes(relative, before!, change.patch);
-      else if (change.op === 'move') after = before;
+      else if (change.op === 'move' || change.op === 'copy') after = before;
       else after = null;
       const afterMode = after === null ? null : beforeMode ?? (process.platform === 'win32' ? 0o666 : 0o600);
-      if ((after?.length ?? 0) > this.ctx.config.limits.writeMaxBytes) throw new AppError('FILE_TOO_LARGE', 'Encoded output exceeds the per-file write limit.');
-      // Count every retained before-image and planned after-image, including both move paths.
-      total += (before?.length ?? 0) + (after?.length ?? 0);
-      if (total > this.limits().maxTotalBytes) throw new AppError('BATCH_TOO_LARGE', 'The batch before-images and after-images exceed maxTotalBytes.', { total_bytes: total, limit: this.limits().maxTotalBytes });
+      if ((after?.length ?? 0) > this.perFileLimit(writeKind)) throw new AppError('FILE_TOO_LARGE', 'The output exceeds its per-file write limit.');
+      // Copy/move count the source snapshot and destination bytes once each.
+      const bytes = (before?.length ?? 0) + (after?.length ?? 0);
+      total += bytes;
+      if (writeKind === 'text') textTotal += bytes;
+      if (textTotal > policy.maxTotalBytes) throw new AppError('BATCH_TOO_LARGE', 'The text changes exceed maxTotalBytes.', { text_total_bytes: textTotal, limit: policy.maxTotalBytes });
+      if (total > totalLimit) throw new AppError('BATCH_TOO_LARGE', 'The combined source and destination bytes exceed the batch budget.', { total_bytes: total, limit: totalLimit });
       if (destination) {
-        this.assertHash(await this.files.snapshotForBatch(destination), null, to!);
-        steps.push({ index: steps.length, change_index: index, path: to!, absolute: destination, before: null, after, before_mode: null, after_mode: afterMode, change_id: null });
-        steps.push({ index: steps.length, change_index: index, path: relative, absolute, before, after: null, before_mode: beforeMode, after_mode: null, change_id: null });
-      } else steps.push({ index: steps.length, change_index: index, path: relative, absolute, before, after, before_mode: beforeMode, after_mode: afterMode, change_id: null });
-      items.push({ index, op: change.op, path: relative, ...(to ? { to } : {}), before_sha256: sha(before), after_sha256: sha(after), before_mode: beforeMode, after_mode: afterMode, before_bytes: before?.length ?? 0, after_bytes: after?.length ?? 0, changed: change.op === 'move' || sha(before) !== sha(after), before, after });
+        this.assertHash(await this.files.snapshotForBatch(destination, this.perFileLimit(writeKind), writeKind), null, to!);
+        const source: Step = { index: steps.length + 1, change_index: index, path: relative, absolute, before, after: change.op === 'copy' ? before : null, before_mode: beforeMode, after_mode: change.op === 'copy' ? beforeMode : null, change_id: null, write_kind: writeKind };
+        steps.push({ index: steps.length, change_index: index, path: to!, absolute: destination, before: null, after, before_mode: null, after_mode: afterMode, change_id: null, write_kind: writeKind, ...(change.op === 'copy' ? { copy_source: source } : {}) });
+        steps.push(source);
+      } else steps.push({ index: steps.length, change_index: index, path: relative, absolute, before, after, before_mode: beforeMode, after_mode: afterMode, change_id: null, write_kind: writeKind });
+      items.push({ index, op: change.op, path: relative, ...(to ? { to } : {}), write_kind: writeKind, before_sha256: sha(before), after_sha256: sha(after), before_mode: beforeMode, after_mode: afterMode, before_bytes: before?.length ?? 0, after_bytes: after?.length ?? 0, changed: change.op === 'move' || change.op === 'copy' || sha(before) !== sha(after), before, after });
     }
     // Validate all original images again before returning a plan or persisting backups.
     await this.recheck(input.workspace_id, binding, steps, write);
     const summaries = items.map(({ before: _before, after: _after, ...summary }) => summary);
     const requests = resolved.items.map(item => ({ op: item.change.op, path: item.relative, to: item.to, expected_sha256: item.change.expected_sha256?.toLowerCase() ?? null, ...(item.change.op === 'write' ? { content_sha256: hash(Buffer.from(item.change.content)) } : item.change.op === 'patch' ? { patch_sha256: hash(Buffer.from(item.change.patch)) } : {}) }));
-    const planHash = hash(Buffer.from(canonical({ version: 1, device_id: identity.deviceId, workspace_binding: binding, requests, changes: summaries })));
-    return { binding, steps, items, summaries, planHash, total };
+    const planHash = hash(Buffer.from(canonical({ version: 2, device_id: identity.deviceId, workspace_binding: binding, policy, requests, changes: summaries })));
+    return { binding, steps, items, summaries, planHash, total, textTotal };
   }
 
   private async recheck(workspaceId: string, binding: string, steps: Step[], write: boolean) {
     if (initializeIdentity(this.ctx).workspaceIdentity(workspaceId) !== binding) throw new AppError('WORKSPACE_IDENTITY_MISMATCH', 'The workspace identity changed.');
     for (const step of steps) {
       const absolute = await this.ctx.paths.resolve(workspaceId, step.path, { allowMissing: true, write });
-      this.assertHash(await this.files.snapshotForBatch(absolute), sha(step.before), step.path);
+      this.assertHash(await this.files.snapshotForBatch(absolute, this.perFileLimit(step.write_kind), step.write_kind), sha(step.before), step.path);
       if (await this.files.modeForBatch(absolute) !== step.before_mode) throw new AppError('VERSION_CONFLICT', 'A file permission mode changed during batch preparation.', { path: step.path });
     }
   }
@@ -150,7 +167,7 @@ export class FileBatchService {
         let reason: string | null = null;
         let redactions = 0;
         try {
-          if (item.op === 'move') diff = `Move ${item.path} to ${item.to}; file bytes unchanged.\n`;
+          if (item.write_kind === 'bytes') diff = '';
           else {
             const oldText = redactSessionText(before === null ? '' : decode(before).text);
             const newText = redactSessionText(after === null ? '' : decode(after).text);
@@ -164,9 +181,9 @@ export class FileBatchService {
         }
         const output = diff === undefined ? { text: '', truncated: true } : capText(diff, remaining);
         remaining -= Buffer.byteLength(output.text);
-        return { ...item, diff: output.text, diff_redacted: redactions > 0, redactions, diff_bytes: diff === undefined ? null : Buffer.byteLength(diff), diff_truncated: output.truncated, diff_omission: reason ?? (output.truncated ? 'RESPONSE_BUDGET' : null) };
+        return { ...item, diff_kind: item.write_kind === 'bytes' ? 'binary' as const : 'text' as const, diff: output.text, diff_redacted: redactions > 0, redactions, diff_bytes: diff === undefined ? null : Buffer.byteLength(diff), diff_truncated: output.truncated, diff_omission: reason ?? (output.truncated ? 'RESPONSE_BUDGET' : null) };
       });
-      return { workspace_id: input.workspace_id, plan_sha256: plan.planHash, changes, total_bytes: plan.total, path_count: plan.steps.length, returned_diff_bytes: max - remaining, max_bytes: max, truncated: changes.some(item => item.diff_truncated), persisted: false, atomic: false, note: stateNote };
+      return { workspace_id: input.workspace_id, plan_sha256: plan.planHash, changes, total_bytes: plan.total, text_total_bytes: plan.textTotal, byte_operation_total_bytes: plan.total - plan.textTotal, path_count: plan.steps.length, returned_diff_bytes: max - remaining, max_bytes: max, truncated: changes.some(item => item.diff_truncated), persisted: false, atomic: false, note: stateNote };
     });
   }
 
@@ -184,8 +201,8 @@ export class FileBatchService {
       try {
         db.prepare('INSERT INTO file_batches(id,workspace_id,workspace_binding,operation_key,plan_sha256,status,summary,created_at) VALUES(?,?,?,?,?,?,?,?)').run(id, input.workspace_id, plan.binding, input.idempotency_key, plan.planHash, 'prepared', JSON.stringify(plan.summaries), new Date().toISOString());
         for (const step of plan.steps) {
-          step.change_id = this.files.prepareBatchChange(input.workspace_id, step.path, step.before, step.after, { beforeMode: step.before_mode, afterMode: step.after_mode });
-          db.prepare('INSERT INTO file_batch_steps(batch_id,step_index,change_index,path,before_sha256,after_sha256,before_mode,after_mode,change_id,status) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id, step.index, step.change_index, step.path, sha(step.before), sha(step.after), step.before_mode, step.after_mode, step.change_id, step.change_id ? 'prepared' : 'unchanged');
+          step.change_id = this.files.prepareBatchChange(input.workspace_id, step.path, step.before, step.after, { beforeMode: step.before_mode, afterMode: step.after_mode }, step.write_kind);
+          db.prepare('INSERT INTO file_batch_steps(batch_id,step_index,change_index,path,before_sha256,after_sha256,before_mode,after_mode,change_id,status,write_kind) VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(id, step.index, step.change_index, step.path, sha(step.before), sha(step.after), step.before_mode, step.after_mode, step.change_id, step.change_id ? 'prepared' : 'unchanged', step.write_kind);
         }
         db.exec('RELEASE prepare_file_batch');
       } catch (error) { db.exec('ROLLBACK TO prepare_file_batch; RELEASE prepare_file_batch'); throw error; }
@@ -196,7 +213,8 @@ export class FileBatchService {
         if (!step.change_id) continue;
         try {
           db.prepare("UPDATE file_batch_steps SET status='applying' WHERE batch_id=? AND step_index=?").run(id, step.index);
-          await this.files.commitForBatch(input.workspace_id, step.path, step.absolute, step.before, step.after, step.change_id, null, { beforeMode: step.before_mode, afterMode: step.after_mode });
+          if (step.copy_source) await this.recheck(input.workspace_id, plan.binding, [step.copy_source], true);
+          await this.files.commitForBatch(input.workspace_id, step.path, step.absolute, step.before, step.after, step.change_id, null, { beforeMode: step.before_mode, afterMode: step.after_mode }, step.write_kind);
           completed.push(step);
           db.prepare("UPDATE file_batch_steps SET status='applied' WHERE batch_id=? AND step_index=?").run(id, step.index);
         } catch (error) {
@@ -214,8 +232,8 @@ export class FileBatchService {
         for (const step of completed.reverse()) {
           try {
             await this.ctx.paths.resolve(input.workspace_id, step.path, { write: true, allowMissing: true });
-            this.assertHash(await this.files.snapshotForBatch(step.absolute), sha(step.after), step.path);
-            const restored = await this.files.commitForBatch(input.workspace_id, step.path, step.absolute, step.after, step.before, undefined, step.change_id, { beforeMode: step.after_mode, afterMode: step.before_mode });
+            this.assertHash(await this.files.snapshotForBatch(step.absolute, this.perFileLimit(step.write_kind), step.write_kind), sha(step.after), step.path);
+            const restored = await this.files.commitForBatch(input.workspace_id, step.path, step.absolute, step.after, step.before, undefined, step.change_id, { beforeMode: step.after_mode, afterMode: step.before_mode }, step.write_kind);
             db.prepare("UPDATE file_batch_steps SET status='rolled_back',rollback_change_id=? WHERE batch_id=? AND step_index=?").run(restored.change_id, id, step.index);
           } catch (error) {
             db.prepare("UPDATE file_batch_steps SET status='rollback_conflict',error_code=? WHERE batch_id=? AND step_index=?").run(errorResult(error).error.code, id, step.index);
@@ -240,7 +258,7 @@ export class FileBatchService {
   }
 
   private rows(id: string): StepRow[] {
-    return this.ctx.store.db.prepare('SELECT step_index,change_index,path,before_sha256,after_sha256,before_mode,after_mode,change_id,status,error_code,rollback_change_id FROM file_batch_steps WHERE batch_id=? ORDER BY step_index').all(id).map(row => ({ ...row })) as StepRow[];
+    return this.ctx.store.db.prepare('SELECT step_index,change_index,path,before_sha256,after_sha256,before_mode,after_mode,change_id,status,error_code,rollback_change_id,write_kind FROM file_batch_steps WHERE batch_id=? ORDER BY step_index').all(id).map(row => ({ ...row })) as StepRow[];
   }
 
   async status(input: { workspace_id: string; idempotency_key: string }) {
@@ -250,20 +268,24 @@ export class FileBatchService {
     const row = this.ctx.store.db.prepare('SELECT * FROM file_batches WHERE workspace_binding=? AND operation_key=?').get(binding, input.idempotency_key) as BatchRow | undefined;
     if (!row) return { workspace_id: input.workspace_id, exists: false as const, batch_id: null, status: 'not_found', note: 'No batch journal exists for this operation key in this workspace. An initial precondition failure creates no journal; do not infer whether unrelated file changes occurred.' };
     const steps = this.rows(row.id);
-    let observedBytes = 0;
+    let observedBytes = 0, observedTextBytes = 0;
+    const totalLimit = steps.some(step => this.stepKind(step) === 'bytes') ? this.limits().binaryMaxTotalBytes : this.limits().maxTotalBytes;
     const observations = [];
     for (const step of steps) {
       try {
-        if (observedBytes >= this.limits().maxTotalBytes) throw new AppError('BATCH_TOO_LARGE', 'Current file observations exceeded the batch byte budget.');
+        const kind = this.stepKind(step);
+        if (observedBytes >= totalLimit || (kind === 'text' && observedTextBytes >= this.limits().maxTotalBytes)) throw new AppError('BATCH_TOO_LARGE', 'Current file observations exceeded the batch byte budget.');
         const absolute = await this.ctx.paths.resolve(input.workspace_id, step.path, { allowMissing: true });
-        const budget = this.limits().maxTotalBytes - observedBytes;
+        const budget = Math.min(totalLimit - observedBytes, kind === 'text' ? this.limits().maxTotalBytes - observedTextBytes : Infinity);
         // Reserve the remaining budget before IO. On uncertain post-read errors
         // it remains spent; a later path must not reuse an unprovable allowance.
         observedBytes += budget;
-        const current = await this.files.snapshotForBatch(absolute, budget);
+        if (kind === 'text') observedTextBytes += budget;
+        const current = await this.files.snapshotForBatch(absolute, budget, kind);
         observedBytes -= budget;
         observedBytes += current?.length ?? 0;
-        if (observedBytes > this.limits().maxTotalBytes) throw new AppError('BATCH_TOO_LARGE', 'Current file observations exceeded the batch byte budget.');
+        if (kind === 'text') { observedTextBytes -= budget; observedTextBytes += current?.length ?? 0; }
+        if (observedBytes > totalLimit || observedTextBytes > this.limits().maxTotalBytes) throw new AppError('BATCH_TOO_LARGE', 'Current file observations exceeded the batch byte budget.');
         const currentHash = sha(current);
         const currentMode = await this.files.modeForBatch(absolute);
         observations.push({ step_index: step.step_index, path: step.path, current_sha256: currentHash, current_mode: currentMode, matches: currentHash === step.before_sha256 && currentHash === step.after_sha256 ? 'both' : currentHash === step.before_sha256 ? 'before' : currentHash === step.after_sha256 ? 'after' : 'neither', mode_matches: currentMode === step.before_mode && currentMode === step.after_mode ? 'both' : currentMode === step.before_mode ? 'before' : currentMode === step.after_mode ? 'after' : 'neither', error_code: null });

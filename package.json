@@ -1,6 +1,6 @@
 {
   "name": "webcodex-mcp",
-  "version": "0.14.0-preview.2",
+  "version": "0.16.0-preview.7",
   "description": "Workspace-scoped local development tools for ChatGPT over MCP",
   "private": true,
   "type": "module",
@@ -11,24 +11,27 @@
     "webcodex-mcp": "dist/src/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/build-document-widget.mjs",
     "test": "npm run build && node scripts/run-tests.mjs",
     "test:symlinks": "npm run build && node scripts/test-file-symlinks.mjs",
     "start": "node dist/src/cli.js",
     "doctor": "node dist/src/cli.js doctor",
     "check": "tsc -p tsconfig.json --noEmit",
     "export:tools": "node scripts/export-tools.mjs",
+    "check:tools": "node scripts/export-tools.mjs --check",
     "audit:repo": "node scripts/audit-repository.mjs",
     "test:repo": "node --test scripts/test-repository-audit.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "diff": "8.0.4",
+    "pdfjs-dist": "6.3.289",
     "smol-toml": "1.8.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
+    "esbuild": "0.28.2",
     "typescript": "5.9.3"
   },
   "license": "MIT",

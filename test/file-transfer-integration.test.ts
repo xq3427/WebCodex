@@ -62,7 +62,7 @@ for (const transport of ['stdio', 'http'] as const) test(`${transport} returns o
   const f = await fixture(t), connection = await connect(f.configPath, transport);
   try {
     const tools = (await connection.client.listTools()).tools;
-    assert.equal(tools.length, 44);
+    assert.equal(tools.length, 65);
     assert.equal(tools.find(tool => tool.name === 'fs_read_file')?.annotations?.readOnlyHint, true);
     const bytes = Buffer.concat([Buffer.from([0, 255, 254, 128, 13, 10]), Buffer.from('中文\0\r\n')]);
     // These extensions test byte transport, not whether a document parser accepts the fixture.
