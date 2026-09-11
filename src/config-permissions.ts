@@ -17,17 +17,17 @@ export async function protectConfigFile(file: string, directory = false): Promis
     const system32 = path.join(systemRoot, 'System32');
     // A fresh DACL also removes pre-existing explicit grants. icacls /grant:r alone
     // replaces only the named principals and can leave an Everyone grant intact.
-    const script = `$ErrorActionPreference='Stop'\n` +
+    // Use only .NET APIs: even New-Object triggers Utility module discovery,
+    // which depends on the inherited PowerShell module paths and initialization.
+    const script = `$ErrorActionPreference='Stop'\n$PSModuleAutoLoadingPreference='None'\n` +
       `$target='${file.replace(/'/g, "''")}'\n` +
       `$owner=[System.Security.Principal.WindowsIdentity]::GetCurrent().User\n` +
-      `$acl=New-Object System.Security.AccessControl.${directory ? 'DirectorySecurity' : 'FileSecurity'}\n` +
+      `$acl=[System.Security.AccessControl.${directory ? 'DirectorySecurity' : 'FileSecurity'}]::new()\n` +
       `$acl.SetAccessRuleProtection($true,$false)\n` +
       `foreach($sid in @($owner.Value,'S-1-5-18','S-1-5-32-544')) {\n` +
-      `  $principal=New-Object System.Security.Principal.SecurityIdentifier($sid)\n` +
-      `  $rule=New-Object System.Security.AccessControl.FileSystemAccessRule($principal,'FullControl',${directory ? "'ContainerInherit,ObjectInherit','None'," : ''}'Allow')\n` +
+      `  $principal=[System.Security.Principal.SecurityIdentifier]::new($sid)\n` +
+      `  $rule=[System.Security.AccessControl.FileSystemAccessRule]::new($principal,'FullControl',${directory ? "'ContainerInherit,ObjectInherit','None'," : ''}'Allow')\n` +
       `  $acl.AddAccessRule($rule)\n}\n` +
-      // Avoid PowerShell module autoload: a parent pwsh process may supply a
-      // PSModulePath incompatible with Windows PowerShell's Security module.
       `[System.IO.${directory ? 'Directory' : 'File'}]::SetAccessControl($target,$acl)\n`;
     await run(path.join(system32, 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, timeout: 10000, maxBuffer: 16384 });
     const after = await lstat(file, { bigint: true });

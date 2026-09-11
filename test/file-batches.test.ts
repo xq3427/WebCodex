@@ -125,7 +125,7 @@ test('write and patch preserve UTF-16 BOM and established newlines inside a batc
 });
 
 test('path aliases, linked files, directories, protected paths, existing move destinations and chains are rejected', async t => {
-  const { batches, root } = await fixture(t);
+  const { batches, files, root } = await fixture(t);
   await fs.writeFile(path.join(root, 'a.txt'), 'a');
   await fs.writeFile(path.join(root, 'b.txt'), 'b');
   await fs.mkdir(path.join(root, 'dir'));
@@ -139,6 +139,28 @@ test('path aliases, linked files, directories, protected paths, existing move de
   await assert.rejects(batches.preview({ workspace_id: 'default', changes: [write('.env', 'x')] }), errorCode('PATH_DENIED'));
   await fs.link(path.join(root, 'a.txt'), path.join(root, 'hardlink.txt'));
   await assert.rejects(batches.preview({ workspace_id: 'default', changes: [{ op: 'delete', path: 'a.txt', expected_sha256: sha('a') }] }), errorCode('PATH_DENIED'));
+  await assert.rejects(files.snapshotForBatch(path.join(root, 'hardlink.txt')), errorCode('PATH_DENIED'));
+  await assert.rejects(files.modeForBatch(path.join(root, 'hardlink.txt')), errorCode('PATH_DENIED'));
+});
+
+test('directories with POSIX link counts are not files and batch rejection leaves no changes', async t => {
+  const { batches, files, root, ctx } = await fixture(t), directory = path.join(root, 'dir');
+  await fs.mkdir(path.join(directory, 'child'), { recursive: true });
+  const lstat = fs.lstat.bind(fs);
+  // POSIX directories can have multiple links without being hard-linked files.
+  // Force that metadata on Windows too, so every CI runner covers the same error.
+  t.mock.method(fs, 'lstat', async (...args: Parameters<typeof fs.lstat>) => {
+    const info = await lstat(...args);
+    if (String(args[0]) === directory) Object.defineProperty(info, 'nlink', { value: typeof info.nlink === 'bigint' ? 3n : 3 });
+    return info;
+  });
+  await assert.rejects(files.snapshotForBatch(directory), errorCode('NOT_A_FILE'));
+  await assert.rejects(files.modeForBatch(directory), errorCode('NOT_A_FILE'));
+  await assert.rejects(batches.preview({ workspace_id: 'default', changes: [write('new.txt', 'new'), write('dir', 'replacement')] }), errorCode('NOT_A_FILE'));
+  assert.deepEqual(await fs.readdir(root), ['dir']);
+  assert.deepEqual(await fs.readdir(directory), ['child']);
+  assert.equal(ctx.store.db.prepare('SELECT COUNT(*) AS n FROM file_changes').get()?.n, 0);
+  assert.equal(ctx.store.db.prepare('SELECT COUNT(*) AS n FROM file_batches').get()?.n, 0);
 });
 
 test('batch path and byte budgets include move destinations, original backups and encoded output', async t => {

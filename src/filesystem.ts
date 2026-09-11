@@ -161,7 +161,9 @@ export class FileService {
   async modeForBatch(absolute: string): Promise<number | null> {
     try {
       const info = await fs.lstat(absolute);
-      if (!info.isFile() || info.isSymbolicLink() || info.nlink > 1) throw new AppError('PATH_DENIED', 'File mode observations require a regular file without links.');
+      if (info.isSymbolicLink()) throw new AppError('PATH_DENIED', 'File mode observations require a regular file without links.');
+      if (!info.isFile()) throw new AppError('NOT_A_FILE', 'The requested path is not a regular file.');
+      if (info.nlink > 1) throw new AppError('PATH_DENIED', 'File mode observations require a regular file without links.');
       return info.mode & 0o777;
     } catch (error) { if (isMissing(error)) return null; throw error; }
   }
@@ -171,8 +173,11 @@ export class FileService {
     let entry;
     try {
       entry = await fs.lstat(absolute, { bigint: true });
-      if (entry.isSymbolicLink() || entry.nlink > 1n) throw new AppError('PATH_DENIED', 'Links are not supported.');
+      if (entry.isSymbolicLink()) throw new AppError('PATH_DENIED', 'Links are not supported.');
+      // POSIX directories normally have multiple links; only regular files use
+      // the link count below to identify unsupported hard links.
       if (!entry.isFile()) throw new AppError('NOT_A_FILE', 'The requested path is not a regular file.');
+      if (entry.nlink > 1n) throw new AppError('PATH_DENIED', 'Links are not supported.');
       file = await fs.open(absolute, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     }
     catch (error) { if (missing && isMissing(error)) return null; throw error; }

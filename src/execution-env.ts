@@ -46,6 +46,12 @@ export function executionEnvironment(configured?: unknown, executable?: string):
     for (const key of Object.keys(result)) if (key.toUpperCase() === name) delete result[key];
     result[name] = value;
   }
+  if (process.platform === 'win32') {
+    // npm 10 requires ComSpec for lifecycle scripts. Derive the OS interpreter
+    // from SystemRoot instead of inheriting an arbitrary parent shell override.
+    const systemRoot = Object.entries(result).find(([key]) => key.toUpperCase() === 'SYSTEMROOT')?.[1];
+    if (systemRoot && path.win32.isAbsolute(systemRoot)) result.ComSpec = path.win32.join(systemRoot, 'System32', 'cmd.exe');
+  }
   if (executable) {
     const inheritedPath = Object.entries(result).find(([key]) => key.toUpperCase() === 'PATH')?.[1];
     for (const key of Object.keys(result)) if (key.toUpperCase() === 'PATH') delete result[key];

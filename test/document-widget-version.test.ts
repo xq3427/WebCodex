@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -58,16 +60,68 @@ test('concurrent same-version publishers expose only complete committed assets t
   const f = await fixture(t);
   await f.publish('/* complete-initial */');
   let done = false, observations = 0;
-  const updates = Promise.all(Array.from({ length: 6 }, (_, n) => f.publish('/* complete-' + n + ' */' + ' '.repeat(10_000))))
+  const complete = Array.from({ length: 6 }, (_, n) => '/* complete-' + n + ' */' + ' '.repeat(10_000));
+  const candidates = new Set(['/* complete-initial */', ...complete]);
+  const updates = Promise.all(complete.map(bytes => f.publish(bytes)))
     .then(() => undefined, error => error).finally(() => { done = true; });
-  while (!done) {
-    assert.match(f.module.renderDocumentWidget(), /complete-(?:initial|[0-5])/);
-    observations++;
-    await new Promise(resolve => setImmediate(resolve));
-  }
+  try {
+    while (!done) {
+      const html = f.module.renderDocumentWidget();
+      assert.ok(candidates.has(html.match(/<script>([\s\S]*)<\/script>/)?.[1] ?? ''), 'Every observed bundle must equal one complete published input.');
+      observations++;
+      await new Promise(resolve => setImmediate(resolve));
+    }
+  } finally { await updates; }
   const error = await updates; if (error) throw error;
   assert.ok(observations > 0);
   assert.match(f.module.renderDocumentWidget(), /complete-[0-5]/);
+});
+
+// Simulate the metadata produced by POSIX atomic replacement, including on
+// Windows where open-file replacement/link-count behavior is different.
+function unlinkedManifestSnapshot(t: TestContext, timing: 'before-read' | 'during-read' | 'modified' | 'hard-linked') {
+  const open = fs.openSync, stat = fs.fstatSync;
+  const manifestDescriptors = new Set<number>();
+  let samples = 0;
+  const opened = t.mock.method(fs, 'openSync', ((file: fs.PathLike, ...args: unknown[]) => {
+    const descriptor = Reflect.apply(open, fs, [file, ...args]);
+    if (String(file).endsWith('document-widget-1.2.3.json')) manifestDescriptors.add(descriptor);
+    else manifestDescriptors.delete(descriptor); // Descriptors can be reused for the JS asset.
+    return descriptor;
+  }) as typeof fs.openSync);
+  const stated = t.mock.method(fs, 'fstatSync', ((descriptor: number, ...args: unknown[]) => {
+    const result = Reflect.apply(stat, fs, [descriptor, ...args]);
+    if (!manifestDescriptors.has(descriptor)) return result;
+    samples++;
+    const unlinked = timing === 'before-read' || samples % 2 === 0;
+    const nlink = timing === 'hard-linked' ? 2n : timing === 'modified' ? 1n : unlinked ? 0n : 1n;
+    return Object.assign(Object.create(Object.getPrototypeOf(result)), result,
+      { nlink, ctimeNs: result.ctimeNs + (unlinked ? 1n : 0n) });
+  }) as typeof fs.fstatSync);
+  syncBuiltinESMExports();
+  t.after(() => { opened.mock.restore(); stated.mock.restore(); syncBuiltinESMExports(); });
+  return () => samples;
+}
+
+for (const timing of ['before-read', 'during-read'] as const) test(`a complete opened manifest remains readable when atomic replacement unlinks it ${timing}`, async t => {
+  const f = await fixture(t), committed = await f.publish('/* complete-opened-snapshot */');
+  const samples = unlinkedManifestSnapshot(t, timing);
+  assert.match(f.module.renderDocumentWidget(), /complete-opened-snapshot/);
+  assert.equal(samples(), 2, 'An intact opened snapshot needs no retry or newer manifest.');
+  assert.equal(f.module.inspectDocumentWidgetAsset().sha256, committed.sha256);
+});
+
+test('an unlinked manifest snapshot still rejects same-size corrupt committed JavaScript', async t => {
+  const f = await fixture(t), committed = await f.publish('/* complete-opened-snapshot */');
+  await writeFile(path.join(f.assets, committed.file), 'x'.repeat(committed.size_bytes));
+  unlinkedManifestSnapshot(t, 'during-read');
+  assert.throws(() => f.module.renderDocumentWidget(), { code: 'DOCUMENT_WIDGET_ASSET_INVALID' });
+});
+
+for (const timing of ['modified', 'hard-linked'] as const) test(`a ${timing} open manifest is not treated as an intact atomic replacement`, async t => {
+  const f = await fixture(t); await f.publish('/* complete-opened-snapshot */');
+  unlinkedManifestSnapshot(t, timing);
+  assert.throws(() => f.module.renderDocumentWidget(), { code: 'DOCUMENT_WIDGET_ASSET_INVALID' });
 });
 
 test('reader rejects absent, malformed, mismatched or escaping manifests without a legacy fallback', async t => {

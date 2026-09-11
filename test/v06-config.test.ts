@@ -73,8 +73,34 @@ async function fixture(t: TestContext, format: ConfigFormat) {
     // a persistent lock still fails cleanup instead of being skipped.
     await fs.rm(actual, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
-  return { base, root, home, raw, configPath, write, cli, failCli, readRaw, worktrees };
+  return { base, root, home, raw, configPath, env, write, cli, failCli, readRaw, worktrees };
 }
+
+test('Windows CLI writes private configuration without PowerShell module autoload', { skip: process.platform !== 'win32' }, async t => {
+  const f = await fixture(t, 'json');
+  const modules = path.join(f.base, 'unavailable-powershell-modules');
+  const utility = path.join(modules, 'Microsoft.PowerShell.Utility');
+  await fs.mkdir(utility, { recursive: true });
+  // An inherited module search path can advertise New-Object from a module that
+  // Windows PowerShell cannot load. ACL application must not discover modules.
+  await fs.writeFile(path.join(utility, 'Microsoft.PowerShell.Utility.psd1'), "@{ RootModule = 'unavailable.psm1'; ModuleVersion = '1.0.0'; FunctionsToExport = @('New-Object') }\n");
+  f.env.PSModulePath = modules;
+  const system32 = path.join(f.env.SystemRoot ?? f.env.SYSTEMROOT!, 'System32');
+  await run(path.join(system32, 'icacls.exe'), [f.configPath, '/grant', '*S-1-1-0:(R)'], { env: f.env, windowsHide: true });
+  const saved = await f.cli('execution', 'preset', '--preset', 'node', '--command', process.execPath);
+  assert.equal(saved.execution_enabled, false);
+  assert.equal((await loadConfig(f.configPath)).tunnel!.apiKey, PRIVATE_KEY);
+  const script = `$ErrorActionPreference='Stop';$PSModuleAutoLoadingPreference='None';` +
+    `$acl=[System.IO.File]::GetAccessControl('${f.configPath.replace(/'/g, "''")}');` +
+    `$expected=@([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value,'S-1-5-18','S-1-5-32-544');$seen=@{};` +
+    `if(!$acl.AreAccessRulesProtected){throw 'Configuration inherits access rules'};` +
+    `foreach($rule in $acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])){` +
+    `if($rule.IdentityReference.Value -notin $expected -or $rule.IsInherited -or $rule.AccessControlType -ne 'Allow' -or $rule.FileSystemRights -ne 'FullControl'){throw 'Configuration has an unexpected access rule'};` +
+    `$seen[$rule.IdentityReference.Value]=$true};` +
+    `foreach($sid in $expected){if(!$seen.ContainsKey($sid)){throw 'Configuration lacks a required private access rule'}};[Console]::WriteLine('private')`;
+  const verified = await run(path.join(system32, 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { env: f.env, windowsHide: true, timeout: 10000 });
+  assert.equal(verified.stdout.trim(), 'private');
+});
 
 for (const format of ['json', 'toml'] as const) {
   test(`CLI --worktree add/rebind persists ${format}, preserves same-root UID, rotates changed-root UID and denies broad Codex-home authorization`, async t => {

@@ -20,12 +20,20 @@ function boundedArtifact(file: URL, maxBytes: number): Buffer {
     fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const before = fstatSync(fd, { bigint: true });
     if (entry.ino !== before.ino || entry.size !== before.size) throw changedDuringRead;
-    if (before.nlink !== 1n) throw invalid();
+    // POSIX rename can unlink the old directory entry after open. The descriptor
+    // still owns that complete snapshot; zero links is not a partial artifact.
+    // The pathname was a single regular file and must identify this descriptor.
+    if (!before.isFile() || (before.nlink !== 1n && before.nlink !== 0n)) throw invalid();
     const bytes = Buffer.alloc(Number(before.size));
     let count = 0;
     while (count < bytes.length) { const read = readSync(fd, bytes, count, bytes.length - count, count); if (!read) throw invalid(); count += read; }
     const after = fstatSync(fd, { bigint: true });
-    if (before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) throw changedDuringRead;
+    if (after.nlink !== 1n && after.nlink !== 0n) throw invalid();
+    const unlinkedSnapshot = before.nlink === 1n && after.nlink === 0n;
+    // Unlink also updates ctime on Linux/macOS without changing file contents.
+    // Content changes remain rejected by size/mtime and the committed SHA-256.
+    if (before.size !== after.size || before.mtimeNs !== after.mtimeNs ||
+      (before.ctimeNs !== after.ctimeNs && !unlinkedSnapshot)) throw changedDuringRead;
     return bytes;
   } catch (error) { if (error === changedDuringRead) throw error; throw invalid(); }
   finally { if (fd !== undefined) closeSync(fd); }

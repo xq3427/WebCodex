@@ -250,11 +250,27 @@ test('directories, missing sources and hard links are not copied', async t => {
   assert.deepEqual(await fs.readdir(f.root), []);
 });
 
+test('source and destination directories with POSIX link counts reject copy without changing files', async t => {
+  const f = await prepare(t), lstat = fs.lstat.bind(fs);
+  t.mock.method(fs, 'lstat', async (...args: Parameters<typeof fs.lstat>) => {
+    const info = await lstat(...args);
+    if ([f.source, f.root].includes(String(args[0]))) Object.defineProperty(info, 'nlink', { value: typeof info.nlink === 'bigint' ? 3n : 3 });
+    return info;
+  });
+  await assert.rejects(f.service.copy({ ...f.input, source_path: '.', idempotency_key: 'directory-source' }), { code: 'NOT_A_FILE' });
+  await assert.rejects(f.service.copy({ ...f.input, path: '.', idempotency_key: 'directory-destination' }), { code: 'NOT_A_FILE' });
+  assert.deepEqual(await fs.readdir(f.root), []);
+  assert.deepEqual(await fs.readFile(path.join(f.source, f.input.source_path)), f.bytes);
+  assert.equal((await f.files.changesList({ workspace_id: 'default' })).changes.length, 0);
+});
+
 test('source and destination symlinks are denied where the OS permits creating them', async t => {
   const f = await prepare(t), sourceLink = path.join(f.source, 'symbolic.bin');
   try { await fs.symlink(path.join(f.source, f.input.source_path), sourceLink); }
   catch (error) { if (['EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) { t.skip('Windows process lacks permission to create symbolic links'); return; } throw error; }
   await assert.rejects(f.service.copy({ ...f.input, source_path: 'symbolic.bin' }), { code: 'PATH_DENIED' });
+  await assert.rejects(f.files.snapshotForBatch(sourceLink), { code: 'PATH_DENIED' });
+  await assert.rejects(f.files.modeForBatch(sourceLink), { code: 'PATH_DENIED' });
   await fs.symlink(path.join(f.source, f.input.source_path), path.join(f.root, 'symbolic.bin'));
   await assert.rejects(f.service.copy({ ...f.input, path: 'symbolic.bin' }), { code: 'PATH_DENIED' });
 });

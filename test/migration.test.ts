@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
-import { watch } from 'node:fs';
-import { lstat, mkdtemp, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, readFile, readdir, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
@@ -170,22 +169,38 @@ test('private writer publishes complete content exclusively and cleans failures 
 });
 
 test('all imported sources are checked again after backup creation and immediately before publication', async t => {
-  const f = await fixture(t, true);
-  let started = false;
-  let mutation: Promise<void> | undefined;
-  const observer = watch(f.state, (_event, name) => {
-    if (!started && String(name) === 'private-config-backups') {
-      started = true;
-      mutation = writeFile(f.auth, JSON.stringify({ api_key: 'synthetic-key-changed-during-backup' }));
+  for (const kind of ['config', 'auth', 'connection', 'http-token'] as const) {
+    for (const change of ['content', 'replacement'] as const) {
+      await t.test(`${kind}: ${change} after backups prevents publication`, async child => {
+        const f = await fixture(child, true);
+        const source = { config: f.source, auth: f.auth, connection: f.connect, 'http-token': path.join(f.state, 'http-token') }[kind];
+        const original = await readFile(source);
+        let reachedPublication = false;
+        await assert.rejects(migrateConfiguration({ source: f.source, output: f.output, apply: true }, async () => {
+          reachedPublication = true;
+          const backupRoot = path.join(f.state, 'private-config-backups');
+          const backups = await readdir(backupRoot);
+          assert.equal(backups.length, 1);
+          const backup = path.join(backupRoot, backups[0]);
+          assert.deepEqual((await readdir(backup)).sort(), ['auth.backup', 'config.json', 'connection.backup', 'http-token.backup']);
+          assert.deepEqual(await readFile(path.join(backup, kind === 'config' ? 'config.json' : `${kind}.backup`)), original);
+          assert.ok((await readdir(f.base)).some(name => name.startsWith('.webcodex-write-config-')));
+          await absent(f.output);
+          if (change === 'replacement') {
+            // Keep the original inode alive so a same-byte replacement cannot reuse it.
+            await rename(source, source + '.replaced');
+            await writeFile(source, original);
+          } else {
+            await writeFile(source, Buffer.concat([original, Buffer.from('\n')]));
+          }
+        }), { code: 'CONFIG_CONFLICT' });
+        assert.equal(reachedPublication, true);
+        await absent(f.output);
+        assert.deepEqual(await readFile(source), change === 'replacement' ? original : Buffer.concat([original, Buffer.from('\n')]));
+        assert.equal((await readdir(f.base)).some(name => name.startsWith('.webcodex-write-config-') || name.endsWith('.lock')), false);
+      });
     }
-  });
-  try {
-    await assert.rejects(migrateConfiguration({ source: f.source, output: f.output, apply: true }), { code: 'CONFIG_CONFLICT' });
-    assert.equal(started, true);
-    await mutation;
-    await absent(f.output);
-    assert.equal((await readdir(f.base)).some(name => name.startsWith('.webcodex-write-config-') || name.endsWith('.lock')), false);
-  } finally { observer.close(); await mutation; }
+  }
 });
 
 test('private file ACL replaces explicit broad grants and permission failures leave no published content', async t => {

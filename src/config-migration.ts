@@ -182,7 +182,9 @@ export async function writePrivateConfig(target: string, value: unknown, expecte
   }
 }
 
-export async function migrateConfiguration(input: { source: string; output: string; legacyAuth?: string; legacyConnect?: string; apply?: boolean }) {
+// The optional in-process callback lets callers coordinate the final publication
+// boundary. Source verification always runs after it; configuration cannot set it.
+export async function migrateConfiguration(input: { source: string; output: string; legacyAuth?: string; legacyConnect?: string; apply?: boolean }, beforePublish?: () => Promise<void>) {
   const source = path.resolve(input.source), output = path.resolve(input.output);
   const original = await safeSnapshot(source);
   const current = await validateConfig(parseConfigText(original.bytes.toString('utf8'), configFormatForPath(source)), await realpath(source));
@@ -255,6 +257,9 @@ export async function migrateConfiguration(input: { source: string; output: stri
     const destination = path.join(backupDir, item.kind + (item.kind === 'config' ? path.extname(source) : '.backup'));
     await privateContents(destination, item.bytes);
   }
-  const written = await writePrivateConfig(output, next, sameTarget ? original.bytes : undefined, verifySources);
+  const written = await writePrivateConfig(output, next, sameTarget ? original.bytes : undefined, async () => {
+    await beforePublish?.();
+    await verifySources();
+  });
   return { ok: true, applied: true, ...summary, backup_directory: backupDir, sha256: written.sha256 };
 }

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { copyFile, link, mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { configureExecutionPreset, inspectExecution } from '../src/execution-admin.js';
 import { defaultUnifiedConfig, executableDefinition, loadConfig, validateConfig } from '../src/config.js';
 import { publicConfig } from '../src/config-admin.js';
-import { normalizeExecutionEnvironment, validExecutionEnvironment } from '../src/execution-env.js';
+import { executionEnvironment, normalizeExecutionEnvironment, validExecutionEnvironment } from '../src/execution-env.js';
 import { JobService } from '../src/jobs.js';
 import { WorkspacePaths } from '../src/paths.js';
 import { StateStore } from '../src/store.js';
@@ -52,6 +54,23 @@ test('execution env validates both variable names and bounded values without ech
   }
   for (const input of [{ CI: 'true\nAPI_KEY=bad' }, { CI: 'anything' }, { NODE_ENV: 'x'.repeat(257) }, { PYTHONUTF8: '2' }, { OMP_NUM_THREADS: '0' }, { TZ: '../../private' }, { LANG: '$HOME' }]) assert.equal(validExecutionEnvironment(input), false);
   assert.equal(validExecutionEnvironment(Object.assign(Object.create({ CI: 'true' }), { NODE_ENV: 'test' })), false);
+});
+
+test('Windows lifecycle scripts receive the system shell without inheriting a parent shell override', { skip: process.platform !== 'win32' }, async t => {
+  const f = await fixture(t);
+  const prior = process.env.ComSpec;
+  let env: NodeJS.ProcessEnv;
+  try {
+    process.env.ComSpec = path.join(f.root, 'untrusted-shell.exe');
+    env = executionEnvironment(undefined, process.execPath);
+  } finally {
+    if (prior === undefined) delete process.env.ComSpec; else process.env.ComSpec = prior;
+  }
+  assert.ok(env.ComSpec && path.isAbsolute(env.ComSpec));
+  assert.notEqual(env.ComSpec, path.join(f.root, 'untrusted-shell.exe'));
+  assert.throws(() => normalizeExecutionEnvironment({ ComSpec: 'cmd.exe' }), { code: 'INVALID_EXECUTION_ENV' });
+  const result = await promisify(execFile)(env.ComSpec, ['/d', '/c', 'echo WEBCODEX_SYSTEM_SHELL'], { cwd: f.root, env, windowsHide: true });
+  assert.equal(result.stdout.trim(), 'WEBCODEX_SYSTEM_SHELL');
 });
 
 test('execution inspection is static and does not expose prefix arguments, secrets or create runtime state', async t => {
