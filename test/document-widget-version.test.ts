@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 const publisherPath = path.resolve('scripts/document-widget-artifacts.mjs');
 const { publishDocumentWidget } = await import(pathToFileURL(publisherPath).href);
 
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, posixOpen = false) {
   const parent = await realpath(tmpdir()), base = await mkdtemp(path.join(parent, 'webcodex-document-version-'));
   t.after(async () => {
     const actual = await realpath(base);
@@ -20,7 +20,19 @@ async function fixture(t: TestContext) {
   const assets = path.join(base, 'assets');
   await mkdir(assets);
   await writeFile(path.join(base, 'package.json'), '{"type":"module"}');
-  await copyFile(new URL('../src/document-widget.js', import.meta.url), path.join(base, 'document-widget.js'));
+  const reader = await readFile(new URL('../src/document-widget.js', import.meta.url), 'utf8');
+  if (posixOpen) {
+    // Exercise the POSIX open capability on every runner. Windows strips only
+    // these unsupported flags at the test I/O boundary; file operations remain
+    // real. On Linux/macOS the kernel receives the actual O_NOFOLLOW/O_NONBLOCK.
+    await writeFile(path.join(base, 'posix-fs.js'), `import fs from 'node:fs';
+export {closeSync,fstatSync,lstatSync,readSync} from 'node:fs';
+export const constants={...fs.constants,O_NOFOLLOW:fs.constants.O_NOFOLLOW||0x40000000,O_NONBLOCK:fs.constants.O_NONBLOCK||0x20000000};
+export const openedFlags=[];
+export function openSync(file,flags){openedFlags.push(flags);return fs.openSync(file,process.platform==='win32'?flags&~(constants.O_NOFOLLOW|constants.O_NONBLOCK):flags);}
+`);
+  }
+  await writeFile(path.join(base, 'document-widget.js'), posixOpen ? reader.replace("from 'node:fs'", "from './posix-fs.js'") : reader);
   await copyFile(new URL('../src/errors.js', import.meta.url), path.join(base, 'errors.js'));
   await copyFile(new URL('../src/file-routing.js', import.meta.url), path.join(base, 'file-routing.js'));
   await writeFile(path.join(base, 'version.js'), "export const VERSION = '1.2.3';\n");
@@ -71,10 +83,63 @@ test('concurrent same-version publishers expose only complete committed assets t
       observations++;
       await new Promise(resolve => setImmediate(resolve));
     }
+  } catch (error) {
+    const details = (error as { details?: { stage?: unknown; reason?: unknown } }).details;
+    t.diagnostic('Atomic reader rejection: ' + JSON.stringify({ stage: details?.stage, reason: details?.reason }));
+    throw error;
   } finally { await updates; }
   const error = await updates; if (error) throw error;
   assert.ok(observations > 0);
   assert.match(f.module.renderDocumentWidget(), /complete-[0-5]/);
+});
+
+test('POSIX atomic open selects one complete manifest despite repeated replacements before open', async t => {
+  const f = await fixture(t, true), manifests: Buffer[] = [];
+  for (let i = 0; i < 5; i++) {
+    await f.publish('/* replacement-' + i + ' */' + ' '.repeat(i * 100));
+    manifests.push(await readFile(f.manifest));
+  }
+  await writeFile(f.manifest, manifests[0]);
+  const open = fs.openSync;
+  let replacements = 0;
+  const mocked = t.mock.method(fs, 'openSync', ((file: fs.PathLike, ...args: unknown[]) => {
+    if (String(file).endsWith('document-widget-1.2.3.json')) {
+      const next = path.join(f.assets, 'scheduled-manifest.tmp');
+      fs.writeFileSync(next, manifests[++replacements % manifests.length]);
+      fs.renameSync(next, f.manifest);
+    }
+    return Reflect.apply(open, fs, [file, ...args]);
+  }) as typeof fs.openSync);
+  syncBuiltinESMExports();
+  t.after(() => { mocked.mock.restore(); syncBuiltinESMExports(); });
+  const html = f.module.renderDocumentWidget();
+  assert.equal(html.match(/<script>([\s\S]*)<\/script>/)?.[1], '/* replacement-1 */' + ' '.repeat(100));
+  assert.equal(replacements, 1, 'Atomic open must not retry to chase a mutable pathname.');
+  const adapter = await import(pathToFileURL(path.join(f.base, 'posix-fs.js')).href);
+  for (const flags of adapter.openedFlags) {
+    assert.ok(flags & adapter.constants.O_NOFOLLOW, 'Reject symlinks at open.');
+    assert.ok(flags & adapter.constants.O_NONBLOCK, 'Do not block on a concurrently substituted FIFO.');
+  }
+});
+
+test('POSIX opened-descriptor bounds reject oversized metadata before reading or allocating its body', async t => {
+  const f = await fixture(t, true); await f.publish('/* bounded */');
+  await writeFile(f.manifest, ' '.repeat(4097));
+  const mocked = t.mock.method(fs, 'readSync', () => assert.fail('An oversized opened manifest must fail before reading.'));
+  syncBuiltinESMExports();
+  t.after(() => { mocked.mock.restore(); syncBuiltinESMExports(); });
+  assert.throws(() => f.module.renderDocumentWidget(), { code: 'DOCUMENT_WIDGET_ASSET_INVALID', details: { stage: 'manifest', reason: 'opened_size_invalid' } });
+});
+
+test('POSIX descriptor validation rejects hard-linked manifest and runtime files', async t => {
+  const f = await fixture(t, true), committed = await f.publish('/* single-linked */');
+  for (const file of [f.manifest, path.join(f.assets, committed.file)]) {
+    const linked = file + '.hardlink';
+    fs.linkSync(file, linked);
+    try { assert.throws(() => f.module.renderDocumentWidget(), { code: 'DOCUMENT_WIDGET_ASSET_INVALID' }); }
+    finally { fs.unlinkSync(linked); }
+  }
+  assert.match(f.module.renderDocumentWidget(), /single-linked/);
 });
 
 // Simulate the metadata produced by POSIX atomic replacement, including on
