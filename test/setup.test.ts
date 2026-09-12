@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, access } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, access, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setupConfiguration } from '../src/setup.js';
@@ -8,7 +8,7 @@ import { AppError } from '../src/errors.js';
 import type { SetupToolsOptions } from '../src/setup-tools.js';
 
 async function fixture() {
-  const base = await mkdtemp(path.join(tmpdir(), 'webcodex-setup-'));
+  const base = await mkdtemp(path.join(await realpath(tmpdir()), 'webcodex-setup-'));
   return { base, config: path.join(base, '配置 空格', 'config.toml'), workspace: path.join(base, '论文 工作区'),
     clean: async () => { assert.ok(path.basename(base).startsWith('webcodex-setup-')); await rm(base, { recursive: true, force: true }); } };
 }

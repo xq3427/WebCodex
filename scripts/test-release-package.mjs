@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { lstat, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, realpath, rm, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -14,9 +14,10 @@ const exec = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 async function scratch(t) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'webcodex-release-test-'));
+  const temporaryRoot = await realpath(os.tmpdir());
+  const dir = await mkdtemp(path.join(temporaryRoot, 'webcodex-release-test-'));
   t.after(async () => {
-    assert.equal(path.dirname(dir), path.resolve(os.tmpdir()));
+    assert.equal(path.dirname(dir), temporaryRoot);
     assert.ok(path.basename(dir).startsWith('webcodex-release-test-'));
     await rm(dir, { recursive: true, force: true });
   });
