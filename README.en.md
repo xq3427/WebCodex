@@ -30,6 +30,8 @@ New setup creates a private `.webcodex/config.toml` with fresh device/workspace 
 
 ## Unified configuration and local control center
 
+The `node dist/src/cli.js …` examples below assume a source checkout. Setup ZIP users can run `start-webcodex.cmd …` on Windows or `webcodex …` on Linux/macOS from the installation directory. These launchers already select the configured file; do not append another `--config`.
+
 All settings live in one selected TOML or JSON file: device, workspaces, tunnel API key, Codex home, program paths, permissions and limits. Configuration files are not merged. Relative paths resolve against the **configuration file's directory**.
 
 Open only the configuration page:

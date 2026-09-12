@@ -30,6 +30,8 @@ PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的�
 
 ## 统一配置与本地控制中心
 
+下文 `node dist/src/cli.js …` 命令用于源码目录。安装包用户使用安装目录中的 `start-webcodex.cmd …`（Windows）或 `webcodex …`（Linux/macOS）；启动器已经绑定所选配置，无需重复填写 `--config`。
+
 所有可修改设置都保存在选中的一份 TOML 或 JSON 文件中，包括设备、工作区、隧道 API key、Codex home、程序路径、权限和限额；不同配置文件不会合并。相对路径以**配置文件所在目录**为基准。
 
 仅打开配置页面：
