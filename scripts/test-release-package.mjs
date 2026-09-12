@@ -135,13 +135,17 @@ test('installer ZIP is flat, self-contained, uses LF for the shell script and ca
   assert.equal(await readFile(path.join(output, 'SHA256SUMS'), 'utf8'), `${report.sha256}  ${report.filename}\n${report.installer.sha256}  ${report.installer.filename}\n`);
 });
 
-test('current tarball installs from the npm cache and its real CLI checks configuration and bundled assets', { timeout: 180_000 }, async t => {
+test('current tarball installs with production dependencies and its real CLI checks configuration and bundled assets', { timeout: 180_000 }, async t => {
   const dir = await scratch(t);
   const report = await createReleasePackage({ root, output: path.join(dir, 'artifacts') });
   const tarball = path.join(dir, 'artifacts', report.filename);
   const prefix = path.join(dir, 'installed');
   const npm = await findNpmCli();
-  await exec(process.execPath, [npm, 'install', '--prefix', prefix, '--ignore-scripts', '--offline', '--no-audit', '--no-fund', tarball],
+  // npm ci caches tarballs but may never fetch package metadata. A clean CI
+  // runner still needs that metadata when installing a separately packed tgz.
+  // Explicit offline mode remains available for a previously populated cache.
+  const cacheMode = process.env.WEBCODEX_PACKAGE_TEST_OFFLINE === '1' ? '--offline' : '--prefer-offline';
+  await exec(process.execPath, [npm, 'install', '--prefix', prefix, '--ignore-scripts', cacheMode, '--no-audit', '--no-fund', tarball],
     { cwd: dir, windowsHide: true, timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
   const packageRoot = path.join(prefix, 'node_modules', 'webcodex-mcp');
   const cli = path.join(packageRoot, 'dist', 'src', 'cli.js');

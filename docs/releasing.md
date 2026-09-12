@@ -46,7 +46,7 @@ npm run package:release
 
 打包从当前 `src/**/*.ts` 映射对应编译 JS，仅收录当前 manifest 指向的组件，拒绝过期构建；归档生成后再次逐字节核对清单。不会打入整个 dist、node_modules、研究下载、测试夹具、源映射或运行状态。Node、Git、ripgrep 和官方 tunnel-client 在安装时从官方源获取，并保留其许可/校验记录；不是仓库里的本机二进制副本。
 
-在独立目录解压 ZIP，运行安装器并检查 `doctor`。CI 在 Windows/Linux/macOS 执行核心、包内容、真实 tgz 离线安装及合成安装器测试；官方依赖首次联网下载和真实 ChatGPT 连接需要另行记录，不能用合成包替代。
+在独立目录解压 ZIP，运行安装器并检查 `doctor`。CI 在 Windows/Linux/macOS 执行核心、包内容、真实 tgz 安装及合成安装器测试；tgz 测试优先使用 npm 缓存，缺少元数据时联网获取（已有完整缓存可设 `WEBCODEX_PACKAGE_TEST_OFFLINE=1` 强制离线）。官方本机工具首次联网下载和真实 ChatGPT 连接需要另行记录，不能用合成包替代。
 
 ## 发布 GitHub Release / npm
 
