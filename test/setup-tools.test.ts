@@ -9,6 +9,7 @@ import test from 'node:test';
 import { deflateRawSync, gzipSync } from 'node:zlib';
 import { installSetupTools, type SetupToolsDependencies } from '../src/setup-tools.js';
 import { AppError } from '../src/errors.js';
+import { setupReleaseCatalog } from '../src/setup-catalog.js';
 
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 type Entry = { name: string; content?: string; kind?: number; deflate?: boolean };
@@ -186,6 +187,25 @@ test('official tunnel semantic version with build metadata is accepted and a dif
   assert.ok((await installSetupTools(f.options, f.deps)).tunnelPath);
   const different = await fixture(t, { tunnelVersion: '0.0.140+0123456789abcdef (git sha: 0123456789abcdef)' });
   await assert.rejects(installSetupTools(different.options, different.deps), { code: 'SETUP_TOOL_PROBE_FAILED' });
+});
+test('anonymous metadata rate limiting uses the pinned official catalog but still rejects corrupt bytes', async t => {
+  const f = await fixture(t), calls: string[] = [], progress: string[] = [];
+  const first = setupReleaseCatalog.tunnel.assets.find(asset => asset.name === 'tunnel-client-v0.0.14-windows-amd64-licenses.txt')!;
+  assert.ok(first);
+  const deps = { ...f.deps, download: async (url: string) => {
+    calls.push(url);
+    if (url.endsWith('/releases/latest')) throw new AppError('SETUP_DOWNLOAD_FAILED', 'Synthetic anonymous API limit');
+    assert.equal(url, first.url);
+    return Buffer.alloc(first.size);
+  } };
+  await assert.rejects(installSetupTools({ ...f.options, onProgress: message => progress.push(message) }, deps), { code: 'SETUP_CHECKSUM_MISMATCH' });
+  assert.equal(calls.length, 2); assert.ok(progress.some(message => message.includes('bundled verified release v0.0.14')));
+  assert.deepEqual(await readdir(f.toolsDir), []);
+});
+test('metadata source-policy errors never fall back to the bundled catalog', async t => {
+  const f = await fixture(t); let calls = 0;
+  await assert.rejects(installSetupTools(f.options, { ...f.deps, download: async () => { calls++; throw new AppError('SETUP_SOURCE_DENIED', 'Synthetic unexpected origin'); } }), { code: 'SETUP_SOURCE_DENIED' });
+  assert.equal(calls, 1);
 });
 for (const [title, options, code] of [
   ['corrupt downloaded bytes', { corruptAsset: true }, 'SETUP_CHECKSUM_MISMATCH'],

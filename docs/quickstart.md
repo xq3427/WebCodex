@@ -104,4 +104,4 @@ node dist/src/cli.js setup --workspace .
 - **浏览器没有打开**：点击终端给出的完整面板链接；页面端口冲突时会使用另一空闲回环端口。不要删除链接凭据部分。
 - **卸载**：先停止进程，备份需要保留的工作区、配置和 state，再删除专用安装目录。安装目录的默认 workspace 可能包含自己的文件，卸载前需保留。外部工作区不在安装目录内；安装器没有添加系统服务或全局 PATH。
 
-Release 同时提供 `SHA256SUMS`。安装器核对 tgz；Node 使用官方 SHASUMS，辅助工具使用官方 GitHub release 的 SHA-256，再检查归档路径与文件类型。安装包不包含本机密钥、实验文件或运行日志。完整发布过程见[发布说明](releasing.md)。
+Release 同时提供 `SHA256SUMS`。安装器核对 tgz；Node 使用官方 SHASUMS，辅助工具使用官方 GitHub release 的 SHA-256，再检查归档路径与文件类型。GitHub 元数据暂时不可用时，使用随本版本保存的官方发布清单（tunnel-client v0.0.14、ripgrep 15.2.0、MinGit 2.55.0.windows.5），继续核对每份资产大小与摘要，不要求 GitHub token。网络必须仍能下载这些官方资产。安装包不包含本机密钥、实验文件或运行日志。完整发布过程见[发布说明](releasing.md)。

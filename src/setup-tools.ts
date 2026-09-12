@@ -8,6 +8,7 @@ import path from 'node:path';
 import tls from 'node:tls';
 import { gunzipSync, inflateRawSync } from 'node:zlib';
 import { AppError } from './errors.js';
+import { setupReleaseCatalog } from './setup-catalog.js';
 
 type Platform = 'win32' | 'linux' | 'darwin';
 type Architecture = 'x64' | 'arm64';
@@ -359,7 +360,16 @@ async function install(tool: Tool, toolsDir: string, platform: Platform, arch: A
   options.onProgress?.(`${tool}: checking the official release.`);
   let release: Release;
   try { release = JSON.parse((await get(`https://api.github.com/repos/${repositories[tool]}/releases/latest`, META_LIMIT)).toString('utf8')); }
-  catch (cause) { if (cause instanceof AppError) throw cause; throw error('SETUP_RELEASE_INVALID', 'The official release metadata is malformed.'); }
+  catch (cause) {
+    if (cause instanceof AppError && cause.code === 'SETUP_DOWNLOAD_FAILED') {
+      // A release ships the exact public metadata of reviewed stable versions.
+      // Only metadata unavailability uses this pinned fallback; malformed data
+      // and source-policy failures are never replaced by a guessed release.
+      release = structuredClone(setupReleaseCatalog[tool]);
+      options.onProgress?.(`${tool}: the public release API is unavailable; using the bundled verified release ${release.tag_name}.`);
+    } else if (cause instanceof AppError) throw cause;
+    else throw error('SETUP_RELEASE_INVALID', 'The official release metadata is malformed.');
+  }
   const versionPattern = tool === 'tunnel' ? /^v\d+\.\d+\.\d+$/ : tool === 'git' ? /^v\d+\.\d+\.\d+\.windows\.\d+$/ : /^\d+\.\d+\.\d+$/;
   if (!release || release.draft !== false || release.prerelease !== false || !versionPattern.test(release.tag_name) || release.html_url !== `https://github.com/${repositories[tool]}/releases/tag/${release.tag_name}` || !Array.isArray(release.assets)) throw error('SETUP_RELEASE_INVALID', 'Expected official stable release metadata with a supported version tag.');
   const filename = archiveName(tool, release.tag_name, platform, arch), archive = releaseAsset(release, filename, repositories[tool]);
