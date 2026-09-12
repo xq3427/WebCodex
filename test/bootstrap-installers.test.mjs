@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { findNpmCli } from '../scripts/package-release.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const windows = process.platform === 'win32';
@@ -45,11 +46,14 @@ console.log('Synthetic installer CLI completed');
 `);
   const archiveName = `webcodex-mcp-${version}.tgz`;
   const archive = path.join(bundle, archiveName);
-  const tar = run('tar', ['-czf', archive, '-C', source, 'package']);
-  assert.equal(tar.status, 0, tar.stdout + tar.stderr);
+  const env = { ...process.env, npm_config_registry: 'http://127.0.0.1:9', npm_config_offline: 'true', npm_config_cache: path.join(temporary, 'cache'), TEST_INSTALL_SCRIPT_MARKER: path.join(temporary, 'lifecycle-script-ran'), WEBCODEX_INSTALL_NO_PAUSE: '1' };
+  // Use Node's Unicode path handling: the system tar on some Windows runners
+  // encodes the Chinese destination as question marks before opening the file.
+  const packed = run(process.execPath, [await findNpmCli(), 'pack', '--json', '--ignore-scripts', '--offline', '--cache', env.npm_config_cache, '--pack-destination', bundle], { cwd: packageRoot, env });
+  assert.equal(packed.status, 0, packed.stdout + packed.stderr);
+  assert.equal(JSON.parse(packed.stdout)[0].filename, archiveName);
   const hash = createHash('sha256').update(await readFile(archive)).digest('hex');
   await writeFile(path.join(bundle, 'SHA256SUMS'), `${hash}  ${archiveName}\n`);
-  const env = { ...process.env, npm_config_registry: 'http://127.0.0.1:9', npm_config_offline: 'true', npm_config_cache: path.join(temporary, 'cache'), TEST_INSTALL_SCRIPT_MARKER: path.join(temporary, 'lifecycle-script-ran'), WEBCODEX_INSTALL_NO_PAUSE: '1' };
   const invoke = (target = installDir, { defaultWorkspace = false, extraArgs = [] } = {}) => run(shell, windows
     ? ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(bundle, script), '-InstallDir', target, ...(defaultWorkspace ? [] : ['-Workspace', workspace]), '-NoPanel', ...extraArgs]
     : [path.join(bundle, script), '--install-dir', target, ...(defaultWorkspace ? [] : ['--workspace', workspace]), '--no-panel', ...extraArgs], { cwd: temporary, env });
