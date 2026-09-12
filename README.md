@@ -14,6 +14,14 @@ WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不�
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.8)，无需 npm 登录：
+
+```text
+npx --yes --package webcodex-mcp@0.16.0-preview.8 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+```
+
+以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
+
 开发者也可从源码安装，需要 Node.js ≥22.16：
 
 ```text

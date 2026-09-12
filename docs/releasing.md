@@ -52,7 +52,7 @@ npm run package:release
 
 推送源码后等待该提交三平台 CI 通过，再创建版本 tag 与预览 Release，将同一次构建的 ZIP、tgz、SHA256SUMS 作为附件上传。修改 README 和快速开始中的版本下载链接时同时更新包版本与 `src/version.ts`，保留上一版组件 URI 兼容。
 
-npm 登录只在本机完成：
+npm 登录和发布验证只在本机完成。发布账户须按 npm 要求启用双因素认证（2FA）；`npm publish` 可能要求在浏览器中再次确认，登录成功并不代表发布已经授权：
 
 ```sh
 npm login --registry=https://registry.npmjs.org
@@ -60,7 +60,9 @@ npm whoami --registry=https://registry.npmjs.org
 npm publish ./release/webcodex-mcp-<版本>.tgz --access public --tag next --registry=https://registry.npmjs.org
 ```
 
-预览版使用 `next` 标签。不要对根开发目录直接 `npm publish`，不要传账号密码或 token 到聊天，也不要关闭 npm 的账户验证。发布后使用 `npm view webcodex-mcp@<版本> version dist.integrity` 核对，再从注册表在独立目录安装验证。未登录或账户未完成发布授权时，GitHub 安装 ZIP/tgz 仍然可以独立交付。
+按终端提示在自己的浏览器中完成验证，并等待发布命令成功退出。密码、验证码、恢复码和 token 不发送到聊天、仓库或 issue。
+
+预览版使用 `next` 标签。不要对根开发目录直接 `npm publish`，不要关闭 npm 的账户验证。发布后使用 `npm view webcodex-mcp@<版本> version dist.integrity` 核对，再从注册表在独立目录安装验证。未登录或账户未完成发布授权时，GitHub 安装 ZIP/tgz 仍然可以独立交付。
 
 ## 推送后
 

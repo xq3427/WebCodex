@@ -14,6 +14,14 @@ WebCodex supplies local tools; ChatGPT interprets the task and calls them. It do
 
 Enter your own Tunnel ID and API key in the dashboard, add workspaces, save and start the connection, then enable it in ChatGPT. See the [complete quick-start guide](docs/quickstart.md) for paths, updates, proxies and installation from a tgz or npm.
 
+With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.8) from a new dedicated directory outside the source checkout; no npm login is needed:
+
+```text
+npx --yes --package webcodex-mcp@0.16.0-preview.8 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+```
+
+Return to the same directory and run the same command to reopen the dashboard. Existing `config.toml` stays unchanged. Use `npx.cmd` if PowerShell blocks `npx.ps1`.
+
 Developers can build from source with Node.js ≥22.16:
 
 ```text

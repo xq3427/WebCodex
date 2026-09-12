@@ -71,18 +71,26 @@ sh install.sh --install-dir "$HOME/Applications/WebCodex" --workspace "$HOME/Pro
 
 ## 已有 Node：使用 tgz 或 npm
 
-无需完整安装器，也可以下载 Release 中的 `webcodex-mcp-0.16.0-preview.8.tgz`，在专用目录运行：
+已有 Node.js ≥22.16 和 npm，可直接使用 [npm 上的 0.16.0-preview.8](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.8)，无需 npm 账号或登录。先在源码仓库及其子目录之外新建专用目录，再运行；例如在用户主目录创建：
+
+```sh
+mkdir ~/WebCodex-local
+cd ~/WebCodex-local
+npx --yes --package webcodex-mcp@0.16.0-preview.8 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+```
+
+命令会安装缺少的工具、在当前目录创建 `config.toml` 和 `workspace`，然后打开管理页面。按上文填写账户和工作区设置。以后回到同一目录运行同一条 `npx` 命令即可重新打开页面，已有配置原样保留；不要删除该目录里的配置、工具、状态和工作区。
+
+也可以下载 Release 中的 `webcodex-mcp-0.16.0-preview.8.tgz`，在专用目录运行：
 
 ```sh
 npm install ./webcodex-mcp-0.16.0-preview.8.tgz --omit=dev --ignore-scripts
 npx --no-install webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
-Windows PowerShell 若拦截 npm.ps1，使用 `npm.cmd` / `npx.cmd`。注册表发布状态以 [npm 包页面](https://www.npmjs.com/package/webcodex-mcp)为准；只有能查到该版本后，才可直接使用：
+Windows PowerShell 若拦截 `npm.ps1` 或 `npx.ps1`，使用 `npm.cmd` / `npx.cmd`。
 
-```sh
-npx --yes --package webcodex-mcp@0.16.0-preview.8 webcodex-mcp setup --workspace ./workspace
-```
+若在源码仓库或其子目录运行，npm 可能优先识别同名开发项目，导致找不到 `webcodex-mcp` 命令。此时改到上述独立目录，或使用下方源码安装命令。
 
 ## 源码安装
 
