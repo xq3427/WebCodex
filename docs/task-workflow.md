@@ -79,6 +79,8 @@
 
 查看失败附近的日志可用 `exec_tail`，输入相同 workspace_id/job_id，加 `stream: "stderr"` 或 `"all"`、max_bytes。返回最近已保存输出，最多取 256 个 chunk，保持其时间顺序和全局字节偏移。默认正文预算为 `min(16384, readMaxBytes)`；输入至少 4 字节，最多 readMaxBytes。
 
+程序非零退出且完全没有捕获输出时，回执带 `failure_diagnostics.code = PROCESS_EXIT_WITHOUT_OUTPUT`。这只确认未捕获到输出，不能据此断言网络、防火墙、密钥或服务权限有问题。若 `output_bytes > 0` 而当前增量页为空，先读 `exec_tail` 的 stderr；不要把已读完的游标当成日志丢失。远程命令排查见 [SSH 故障定位](ssh-troubleshooting.md)。
+
 v0.10 按工作区选择 `executionProfile`，省略时使用全局默认。新作业回执绑定 profile、所选程序、固定参数和实际精简环境的摘要；改变这些设置后，相同 `exec_start` 幂等键返回冲突，不会把旧运行当作新环境下的验证。旧版本无摘要回执继续按旧规则返回，不重新启动。活动作业的 stdin 也校验原执行配置；变化会拒绝发送。查看 `workspace_list/open` 确认有效环境，再决定是否确需新执行。
 
 工作区离线、被禁用或身份变化时，该工作区的既有作业查询、输入和取消会受身份校验限制；`workspace_health` 可用于诊断。正常服务关闭仍会结束本服务拥有的活动进程。跨离线状态独立控制作业及跨重启续跑尚未实现。

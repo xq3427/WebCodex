@@ -2,7 +2,7 @@
   "server": {
     "name": "webcodex-mcp",
     "title": "WebCodex · Example device",
-    "version": "0.16.0-preview.7"
+    "version": "0.16.0-preview.8"
   },
   "tools": [
     {
@@ -6995,13 +6995,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.7.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.7.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original file",
         "openai/toolInvocation/invoked": "Original file ready in component"
@@ -7282,13 +7282,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.7.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.7.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing file upload check",
         "openai/toolInvocation/invoked": "Check upload support in the component"
@@ -7658,13 +7658,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.7.html",
+          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.8.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.7.html",
+        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.8.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing content relay check",
         "openai/toolInvocation/invoked": "Component prepared; content not yet returned"
@@ -8173,13 +8173,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/document-0.16.0-preview.7.html",
+          "resourceUri": "ui://webcodex/document-0.16.0-preview.8.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.7.html",
+        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.8.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original PDF for reading",
         "openai/toolInvocation/invoked": "PDF prepared; page text pending"
@@ -9201,13 +9201,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.7.html",
+          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.8.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.7.html",
+        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.8.html",
         "openai/widgetAccessible": true,
         "openai/fileParams": [
           "file"

@@ -1,6 +1,6 @@
 # 将 WebCodex 接入 ChatGPT 网页
 
-本指南对应 0.16.0-preview.2、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。`connect` 默认同时启动本机配置控制中心，并输出带临时凭据的完整本机链接，可直接在页面管理本次连接。原生附件自动上传仍暂停；本地 PDF 文字层使用 document_open/document_read，生成文件回存默认使用 fs_write_binary_chunk/status，不需要 URL，均需实际宿主验收。
+本指南对应 0.16.0-preview.8、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。`connect` 默认同时启动本机配置控制中心，并输出带临时凭据的完整本机链接，可直接在页面管理本次连接。本地 PDF 文字层使用 document_open/document_read，生成文件自动回存使用 fs_save_file/status，均需分别通过实际宿主验收；不等同于自动上传为原生附件。
 
 连接路径是本机出站 HTTPS → OpenAI 隧道 → 本机官方客户端 → stdio MCP。不需要自建公网入口；本机、网络、客户端及你配置的代理需要保持运行。
 
@@ -8,23 +8,21 @@
 
 ## 1. 初始化
 
-安装 Node.js ≥22.16、Git 和 ripgrep。在下载的仓库目录执行：
+新用户推荐按[快速开始](quickstart.md)下载一键安装 ZIP；安装器会准备本机依赖并打开管理页面。下面是已有 Node.js ≥22.16 的源码安装方式：
 
 ```text
 npm ci --ignore-scripts
 npm run build
-node dist/src/cli.js init --workspace .
-node dist/src/cli.js config validate
-node dist/src/cli.js doctor
+node dist/src/cli.js setup --workspace .
 ```
 
-PowerShell 可用 `npm.cmd`。已有配置时跳过 `init`。默认使用 `.webcodex/config.toml`；每条命令均可加同一个 `--config /absolute/private/config.toml`。Windows 示例为 `D:/WebCodex/config.toml`。
+PowerShell 可用 `npm.cmd`。首次 setup 安装工具并创建配置；已有配置原样保留。默认使用 `.webcodex/config.toml`；每条命令均可加同一个 `--config /absolute/private/config.toml`。Windows 示例为 `D:/WebCodex/config.toml`。传统 init 只生成配置，不安装工具。
 
 `doctor` 检查本机 Git、rg、PDF 组件清单与字节完整性，并报告工作区状态，不证明云端已经连通。PATH 不同时可在配置填写本机 `nodePath/gitPath/rgPath`。详见[统一配置](local-configuration.md)。
 
 ## 2. 安装官方客户端
 
-从 [openai/tunnel-client releases](https://github.com/openai/tunnel-client/releases) 下载匹配操作系统和架构的客户端。
+首次 setup 已从 [openai/tunnel-client releases](https://github.com/openai/tunnel-client/releases) 安装匹配操作系统和架构的客户端，可跳过本节。下面保留已有手动配置的安装方式。
 
 Windows 提供安装脚本：
 
@@ -39,7 +37,7 @@ Windows 提供安装脚本：
 - `clientPath = "auto"`：使用 `toolsDir/tunnel-client/install.json` 的安装记录，并复核版本、来源、架构和程序摘要。外置配置须在安装时传同一 `-Config`，例如 `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`。可先加 `-ResolveOnly` 仅查看安装位置；不会下载或修改配置。
 - 显式设置 `clientPath` 和 `clientSha256`：指定已下载的原生程序及完整 64 位 SHA-256，可用 `clientVersion` 固定版本。摘要须与可信官方发行材料核对；仅对未知文件自行算一次哈希不能证明其来源。
 
-Linux/macOS 当前需采用显式路径和摘要；没有这些平台的一键安装脚本。不要复制其他操作系统的二进制或安装记录。
+Linux/macOS 的首次 setup 同样生成已验证安装记录。手动安装可采用显式路径和摘要；不要复制其他操作系统的二进制或安装记录。
 
 ## 3. 配置隧道和鉴权
 

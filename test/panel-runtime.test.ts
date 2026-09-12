@@ -267,7 +267,7 @@ test('managed HTTP child cooperatively exits over private IPC, including stop be
     const entryPoint = path.join(base, 'synthetic-http.js');
     await writeFile(entryPoint, `const fs=require('node:fs');const path=require('node:path');const root=__dirname;
       const lock=path.join(root,'state','daemon.lock');fs.writeFileSync(lock,'synthetic-owned');
-      fs.writeFileSync(path.join(root,'child-check.json'),JSON.stringify({hasIpc:process.connected,hasLegacyKey:Boolean(process.env.OPENAI_API_KEY||process.env.CONTROL_PLANE_API_KEY),revision:process.env.WEBCODEX_PANEL_CONFIG_REVISION,args:process.argv.slice(2)}));
+      fs.writeFileSync(path.join(root,'child-check.json'),JSON.stringify({hasIpc:process.connected,hasLegacyKey:Boolean(process.env.OPENAI_API_KEY||process.env.CONTROL_PLANE_API_KEY),programData:Object.entries(process.env).find(([name])=>name.toUpperCase()==='PROGRAMDATA')?.[1]??null,revision:process.env.WEBCODEX_PANEL_CONFIG_REVISION,args:process.argv.slice(2)}));
       process.on('message',message=>{if(message&&message.type==='webcodex_panel_shutdown'){fs.writeFileSync(path.join(root,'cooperative-stop'),'done');fs.unlinkSync(lock);process.disconnect();}});
       process.on('disconnect',()=>{try{fs.unlinkSync(lock);}catch{}});
       setTimeout(()=>process.send({type:'webcodex_panel_ready'}),60);`);
@@ -281,6 +281,9 @@ test('managed HTTP child cooperatively exits over private IPC, including stop be
     } finally { controller.abort(); }
     const observed = JSON.parse(await readFile(path.join(base, 'child-check.json'), 'utf8'));
     assert.equal(observed.hasIpc, true); assert.equal(observed.hasLegacyKey, false); assert.equal(observed.revision, revision);
+    const hostProgramData = Object.entries(process.env).find(([name]) => name.toUpperCase() === 'PROGRAMDATA')?.[1] ?? null;
+    assert.equal(observed.programData, process.platform === 'win32' ? hostProgramData : null);
+    if (process.platform === 'win32') assert.ok(observed.programData, 'The managed HTTP child must retain ProgramData for its SSH jobs.');
     assert.deepEqual(observed.args, ['serve', '--config', configPath, '--transport', 'http']);
     assert.equal(await readFile(path.join(base, 'cooperative-stop'), 'utf8'), 'done');
     await assert.rejects(access(path.join(config.stateDir, 'daemon.lock')), { code: 'ENOENT' });

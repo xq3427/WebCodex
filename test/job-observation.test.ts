@@ -34,10 +34,28 @@ test('wait returns on delayed output and then observes the actual exit code',asy
   const observed=await app.jobs.wait({workspace_id:'default',job_id:job.job_id,cursor:last.next_cursor,wait_ms:2000});
   assert.equal(observed.wait_reason,'terminal');assert.ok(observed.waited_ms<250);
 });
+test('silent process failure remains distinct from an exhausted output cursor or a wait timeout',async t=>{
+  const {app,start}=await fixture(t);
+  const silent=await start('process.exitCode=255');
+  const failed=await finish(app,silent.job_id);
+  assert.equal(failed.status,'failed');assert.equal(failed.exit_code,255);assert.equal(failed.output_bytes,0);
+  assert.equal(failed.failure_diagnostics?.code,'PROCESS_EXIT_WITHOUT_OUTPUT');
+  const listed=app.jobs.list({workspace_id:'default'}).jobs.find(job=>job.job_id===silent.job_id);
+  assert.deepEqual(listed?.failure_diagnostics,failed.failure_diagnostics);
+  const withError=await start("process.stderr.write('SYNTHETIC_AUTH_DIAGNOSTIC');process.exitCode=255");
+  await finish(app,withError.job_id);
+  const output=app.jobs.poll({workspace_id:'default',job_id:withError.job_id});
+  const drained=await app.jobs.wait({workspace_id:'default',job_id:withError.job_id,cursor:output.next_cursor});
+  assert.deepEqual(drained.output,[]);assert.ok(drained.output_bytes>0);
+  assert.equal(drained.failure_diagnostics,undefined);
+  assert.equal(app.jobs.tail({workspace_id:'default',job_id:withError.job_id,stream:'stderr'}).output.map(c=>c.text).join(''),'SYNTHETIC_AUTH_DIAGNOSTIC');
+});
+
 test('bounded waits time out without changing the job and reject excessive arguments',async t=>{
   const {app,start}=await fixture(t);const job=await start('setInterval(()=>{},1000)');
   const input={workspace_id:'default',job_id:job.job_id};
   const result=await app.jobs.wait({...input,wait_ms:50});assert.equal(result.wait_reason,'timeout');assert.equal(result.terminal,false);assert.ok(result.waited_ms>=35);
+  assert.equal(result.failure_diagnostics,undefined);
   app.ctx.config.execution.maxWaitMs=60;app.ctx.config.execution.defaultWaitMs=10;
   await assert.rejects(app.jobs.wait({...input,wait_ms:61}),{code:'INVALID_ARGUMENT'});
   await assert.rejects(app.jobs.wait({...input,max_bytes:app.ctx.config.limits.readMaxBytes+1}),{code:'INVALID_ARGUMENT'});

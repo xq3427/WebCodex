@@ -457,6 +457,12 @@ export class JobService {
       created_at: row.created_at, started_at: row.started_at, ended_at: row.ended_at,
       timeout_ms: row.timeout_ms, exit_code: row.exit_code, signal: row.signal,
       output_bytes: row.output_bytes, output_truncated: row.output_truncated === 1, error: row.error,
+      ...(row.status === 'failed' && row.exit_code !== null && row.exit_code !== 0 && row.output_bytes === 0 && !row.error ? {
+        failure_diagnostics: {
+          code: 'PROCESS_EXIT_WITHOUT_OUTPUT',
+          message: 'The program exited unsuccessfully without captured stdout or stderr. Its exit code alone does not identify a network, authentication or permission failure. Compare the same executable and arguments in the host environment; try a local version/help command before testing the remote connection. Do not replay remote mutations or change security settings on this evidence alone.',
+        },
+      } : {}),
       stdin: {mode:row.stdin_mode,state:row.stdin_state,bytes_attempted:row.stdin_bytes_attempted},
       execution_profile: row.execution_profile, execution_context_sha256: row.execution_context_sha256,
     };

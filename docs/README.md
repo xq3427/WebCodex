@@ -2,13 +2,13 @@
 
 [中文 README](../README.md) · [English README](../README.en.md) · [项目目录](../README.md#项目目录) · [贡献指南](../CONTRIBUTING.md)
 
-当前版本为 **0.16.0-preview.7**。首次使用建议先构建并初始化，再编辑统一配置、启动连接，最后在测试工作区验收。精确工具定义与版本信息以[工具 schema](tools.json)和[当前验收入口](current-acceptance.md)为准。
+当前版本为 **0.16.0-preview.8**。首次使用推荐安装 ZIP 或 `setup`，通过页面配置并连接后，在测试工作区验收。精确工具定义与版本信息以[工具 schema](tools.json)和[当前验收入口](current-acceptance.md)为准。
 
 ## 安装、配置与接入
 
 | 文档 | 何时阅读 |
 | --- | --- |
-| [快速开始](../README.md#快速开始) | 从源码安装、初始化和检查依赖 |
+| [快速开始](quickstart.md) | Windows 双击安装、Linux/macOS 安装、tgz/npm、账户配置和更新 |
 | [统一配置](local-configuration.md) | 选择 JSON/TOML；配置设备、目录、Codex home、执行权限和限额 |
 | [本地控制中心](local-panel.md) | 在本机页面管理配置、工作区、权限及面板管理服务的启停 |
 | [接入 ChatGPT](chatgpt-setup.md) | 配置官方隧道、启动连接、核实身份，处理升级和接入故障 |
@@ -42,6 +42,7 @@
 | [架构](architecture.md) | 模块、数据流和权限边界 |
 | [功能状态](implementation-status.md) | 当前可用、受限、实验及暂停能力 |
 | [协议诊断](protocol-diagnostics.md) | 有界诊断记录、工具是否到达服务端以及结果判读 |
+| [SSH 故障定位](ssh-troubleshooting.md) | 手工正常但 MCP 失败、Windows 启动环境、stderr 和超时的正确判读 |
 | [测试](testing.md) | 必要命令、合成数据、实际证据和平台差异 |
 | [路线](roadmap.md) | 后续优先级与未完成验收 |
 | [发布指南](releasing.md) | GitHub 授权、公开内容检查和发布后验收 |

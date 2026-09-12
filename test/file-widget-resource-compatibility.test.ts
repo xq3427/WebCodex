@@ -86,7 +86,7 @@ for (const mode of ['stdio', 'http'] as const) {
         'ui://webcodex/file-feasibility-0.15.0-preview.3.html',
         'ui://webcodex/file-feasibility-0.15.0-preview.4.html',
         'ui://webcodex/file-feasibility-0.15.0-preview.5.html',
-        'ui://webcodex/file-feasibility-0.15.0-preview.6.html', 'ui://webcodex/file-feasibility-0.15.0-preview.7.html', 'ui://webcodex/file-feasibility-0.16.0-preview.1.html', 'ui://webcodex/file-feasibility-0.16.0-preview.2.html', 'ui://webcodex/file-feasibility-0.16.0-preview.3.html', 'ui://webcodex/file-feasibility-0.16.0-preview.4.html', 'ui://webcodex/file-feasibility-0.16.0-preview.5.html', 'ui://webcodex/file-feasibility-0.16.0-preview.6.html'];
+        'ui://webcodex/file-feasibility-0.15.0-preview.6.html', 'ui://webcodex/file-feasibility-0.15.0-preview.7.html', 'ui://webcodex/file-feasibility-0.16.0-preview.1.html', 'ui://webcodex/file-feasibility-0.16.0-preview.2.html', 'ui://webcodex/file-feasibility-0.16.0-preview.3.html', 'ui://webcodex/file-feasibility-0.16.0-preview.4.html', 'ui://webcodex/file-feasibility-0.16.0-preview.5.html', 'ui://webcodex/file-feasibility-0.16.0-preview.6.html', 'ui://webcodex/file-feasibility-0.16.0-preview.7.html'];
       assert.deepEqual([...LEGACY_FILE_WIDGET_URIS], expectedLegacy);
       const allowed = [...new Set([FILE_WIDGET_URI, ...expectedLegacy])];
       const listed = await c.client.listResources();

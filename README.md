@@ -6,25 +6,27 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.7，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.8，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-需要 **Node.js ≥ 22.16、Git、ripgrep（rg）**。项目尚未发布 npm 包，请从源码构建：
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.8/WebCodex-0.16.0-preview.8-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+
+在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
+
+开发者也可从源码安装，需要 Node.js ≥22.16：
 
 ```text
 git clone https://github.com/xq3427/WebCodex.git
 cd WebCodex
 npm ci --ignore-scripts
 npm run build
-node dist/src/cli.js init --workspace .
-node dist/src/cli.js config validate
-node dist/src/cli.js doctor
+node dist/src/cli.js setup --workspace .
 ```
 
-PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。已有配置时跳过 `init`；初始化不会覆盖已有配置。
+PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的工具并打开页面；已有配置原样保留。加 `--no-panel` 仅部署并退出。
 
-`init` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。接下来通过[本地控制中心](#统一配置与本地控制中心)编辑配置，按[接入 ChatGPT](#接入-chatgpt-网页)配置隧道并启动连接。
+首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。传统 `init` 仅创建配置，仍保留兼容。
 
 ## 统一配置与本地控制中心
 
@@ -54,7 +56,7 @@ Windows 可使用 `D:/WebCodex/config.toml`。[TOML 模板](examples/config.exam
 推荐通过 **OpenAI 官方 Secure MCP Tunnel** 连接本机 stdio 服务。此模式无需自建公网服务器、域名、Cloudflare、浏览器扩展或 Actions 服务；账户仍须具备相应 Platform 隧道和 ChatGPT 连接权限。
 
 1. 在 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 创建或选择隧道，并准备具备运行权限的 API key。
-2. 安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。Windows 使用默认配置时运行 `./scripts/install-tunnel.ps1`；自定义配置需指定同一文件，例如 `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`。Linux/macOS 下载匹配平台的程序并配置路径和 SHA-256。
+2. 一键安装或首次 `setup` 已安装[官方 tunnel-client](https://github.com/openai/tunnel-client/releases)。已有手动配置可按[接入指南](docs/chatgpt-setup.md)单独安装；再次 setup 不自动替换已有工具路径。
 3. 在所选配置的 `tunnel` 中填写 `enabled`、`id` 和 `apiKey`，保留 `server.transport = "stdio"`。
 4. 检查并启动连接：
 
@@ -125,15 +127,17 @@ Codex home 可位于任意本机盘符，例如 `D:/CodexData/.codex`。省略 `
 | `src/browser/` | 浏览器 PDF 正文组件及资源加载代码 |
 | `test/` | 合成文件、临时工作区及服务/组件回归测试 |
 | `scripts/` | 构建、测试、工具导出、仓库审计与隧道辅助脚本 |
+| `distribution/` | Windows/POSIX 一键安装器源码 |
 | `examples/` | 不含真实身份和密钥的配置模板与示例 |
 | `docs/` | 使用指南、架构、功能边界、生成的 schema 和验收入口 |
 | `.github/` | CI 与 issue/PR 模板 |
 | `dist/`、`node_modules/` | 本机构建和依赖输出，不提交 |
 | `.webcodex/` | 默认本机配置、状态与运行产物，不提交 |
+| `release/` | 本机生成的 tgz、安装 ZIP 与校验清单，不提交 |
 
 ## 文档与开发
 
-- 入门：[接入 ChatGPT](docs/chatgpt-setup.md) · [统一配置](docs/local-configuration.md) · [本地控制中心](docs/local-panel.md)
+- 入门：[快速安装](docs/quickstart.md) · [接入 ChatGPT](docs/chatgpt-setup.md) · [统一配置](docs/local-configuration.md) · [本地控制中心](docs/local-panel.md)
 - 工作流：[文件操作](docs/file-workflow.md) · [自动原件回存](docs/file-writeback.md) · [任务与执行](docs/task-workflow.md) · [Codex 接续](docs/codex-emergency.md)
 - 实现与证据：[架构](docs/architecture.md) · [功能状态](docs/implementation-status.md) · [测试](docs/testing.md) · [协议诊断](docs/protocol-diagnostics.md) · [路线](docs/roadmap.md)
 - 维护：[贡献指南](CONTRIBUTING.md) · [安全说明](SECURITY.md) · [更新记录](CHANGELOG.md) · [第三方依赖](THIRD_PARTY_NOTICES.md)

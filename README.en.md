@@ -6,25 +6,27 @@ Let ChatGPT use MCP to work on authorized local projects: read and edit code, in
 
 WebCodex supplies local tools; ChatGPT interprets the task and calls them. It does not call Codex models, restore quotas, or bypass product limits. It can help continue project work when Codex is temporarily unavailable. This is an independent community project, not an official OpenAI product.
 
-**Version: 0.16.0-preview.7 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
+**Version: 0.16.0-preview.8 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
 
 ## Quick start
 
-Requires **Node.js ≥ 22.16, Git and ripgrep (rg)**. No npm release is available yet; build from source:
+**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.8/WebCodex-0.16.0-preview.8-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
+
+Enter your own Tunnel ID and API key in the dashboard, add workspaces, save and start the connection, then enable it in ChatGPT. See the [complete quick-start guide](docs/quickstart.md) for paths, updates, proxies and installation from a tgz or npm.
+
+Developers can build from source with Node.js ≥22.16:
 
 ```text
 git clone https://github.com/xq3427/WebCodex.git
 cd WebCodex
 npm ci --ignore-scripts
 npm run build
-node dist/src/cli.js init --workspace .
-node dist/src/cli.js config validate
-node dist/src/cli.js doctor
+node dist/src/cli.js setup --workspace .
 ```
 
-On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. Skip `init` when a configuration already exists; initialization never overwrites it.
+On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. `setup` installs missing tools for a new configuration and opens the dashboard. Existing configuration stays unchanged. Add `--no-panel` to prepare and exit.
 
-`init` creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. Next, use the [local control center](#unified-configuration-and-local-control-center) to edit settings, then configure the tunnel and [connect to ChatGPT](#connect-to-chatgpt).
+New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. The legacy `init` command still creates configuration without installing tools.
 
 ## Unified configuration and local control center
 
@@ -54,7 +56,7 @@ Configuration changes require restarting the corresponding service. The page man
 Use the **official OpenAI Secure MCP Tunnel** for a local stdio service. This path needs no self-hosted public server, domain, Cloudflare, browser extension or Actions endpoint. Your account still needs the appropriate Platform tunnel and ChatGPT connection access.
 
 1. Create or select a tunnel in [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels), and prepare an API key with permission to run it.
-2. Install the official [tunnel-client](https://github.com/openai/tunnel-client/releases). On Windows, run `./scripts/install-tunnel.ps1` for the default configuration; for a custom location, pass that same file, for example `./scripts/install-tunnel.ps1 -Config D:/WebCodex/config.toml`. Linux/macOS users configure a matching binary path and SHA-256.
+2. The installer or a new `setup` already installs the official [tunnel-client](https://github.com/openai/tunnel-client/releases). Existing manual configurations can follow the [connection guide](docs/chatgpt-setup.md) to install it separately.
 3. Set `tunnel.enabled`, `tunnel.id` and `tunnel.apiKey` in the selected configuration. Keep `server.transport = "stdio"`.
 4. Check and start the connection:
 

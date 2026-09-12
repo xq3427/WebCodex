@@ -501,7 +501,7 @@ JSON 对应 `"execution": { ..., "env": { "NODE_ENV": "test", "CI": "true" } }`�
 | `OMP_NUM_THREADS`、`MKL_NUM_THREADS`、`OPENBLAS_NUM_THREADS`、`NUMEXPR_NUM_THREADS` | 1–4096 的整数字符串 |
 | `CUDA_VISIBLE_DEVICES` | 空字符串、-1 或逗号分隔的数字设备序号 |
 
-不接受自定义变量、PATH、NODE_OPTIONS、PYTHONPATH、PYTHONHOME、HOME、代理、API key/token/secret/password 等字段，也不从 MCP 调用参数临时传入任意 env。配置加载和作业启动前都会校验；配置展示只列出变量名。服务仅继承少量系统运行变量，子进程 PATH 由选定解释器所在目录加宿主 PATH 构成，凭据和代码注入变量不继承。该过滤不是 OS 沙箱，已授权程序仍具有服务用户的宿主权限。
+不接受自定义变量、PATH、NODE_OPTIONS、PYTHONPATH、PYTHONHOME、HOME、代理、API key/token/secret/password 等字段，也不从 MCP 调用参数临时传入任意 env。配置加载和作业启动前都会校验；配置展示只列出变量名。服务仅继承少量系统运行变量，子进程 PATH 由选定解释器所在目录加宿主 PATH 构成，凭据和代码注入变量不继承。Windows 的 `ProgramData` 是 OpenSSH 启动所需的系统目录变量，隧道启动器、面板托管服务及命令子进程均保留宿主值，不写死盘符、不允许配置覆盖。Windows `ComSpec` 由宿主 `SystemRoot` 派生。该过滤不是 OS 沙箱，已授权程序仍具有服务用户的宿主权限。
 
 ### 实际构建与测试
 

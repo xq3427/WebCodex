@@ -145,6 +145,8 @@ async function verifiedClient(config: TunnelConfig, settings: TunnelSettings) {
 /** Minimal runtime environment: no legacy tunnel profiles, credentials or proxy variables. */
 function childEnvironment(key?: string): NodeJS.ProcessEnv {
   const allowed = new Set(['PATH', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'PATHEXT', 'LANG', 'LC_ALL', 'TZ']);
+  // Keep the Windows OpenSSH prerequisite through launcher -> MCP -> job.
+  if (process.platform === 'win32') allowed.add('PROGRAMDATA');
   const environment: NodeJS.ProcessEnv = {};
   for (const [name, value] of Object.entries(process.env)) if (allowed.has(name.toUpperCase()) && value !== undefined) environment[name] = value;
   if (key !== undefined) environment.CONTROL_PLANE_API_KEY = key;

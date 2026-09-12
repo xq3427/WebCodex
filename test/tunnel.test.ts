@@ -58,6 +58,7 @@ const args = process.argv.slice(2);
 const get = name => args[args.indexOf(name) + 1];
 const verb = path.basename(process.argv[1]);
 const observation = { verb, args, keyMatched: process.env.CONTROL_PLANE_API_KEY === options.expectedKey,
+  programData: Object.entries(process.env).find(([name])=>name.toUpperCase()==='PROGRAMDATA')?.[1] ?? null,
   leakedSettings: Object.keys(process.env).filter(name => /^(?:CONTROL_PLANE_|MCP_|HARPOON_|LOG_|OPENAI_API_KEY$|NODE_OPTIONS$|HTTPS?_PROXY$|ALL_PROXY$|NO_PROXY$)/i.test(name) && name !== 'CONTROL_PLANE_API_KEY') };
 fs.appendFileSync(path.join(__dirname, 'observations.jsonl'), JSON.stringify(observation) + '\\n');
 // Simulate an unsafe third-party diagnostic; the launcher must never relay it.
@@ -103,6 +104,9 @@ test('unified tunnel config controls argv and child environment with a quoted st
     for (const record of records) {
       assert.equal(record.keyMatched, true);
       assert.deepEqual(record.leakedSettings, []);
+      const hostProgramData = Object.entries(process.env).find(([name]) => name.toUpperCase() === 'PROGRAMDATA')?.[1] ?? null;
+      assert.equal(record.programData, process.platform === 'win32' ? hostProgramData : null);
+      if (process.platform === 'win32') assert.ok(record.programData, 'The tunnel child needs the host ProgramData for its MCP SSH jobs.');
       assert.ok(!JSON.stringify(record).includes(fakeKey));
       const at = (name: string) => record.args[record.args.indexOf(name) + 1];
       assert.equal(at('--control-plane.api-key'), 'env:CONTROL_PLANE_API_KEY');

@@ -99,6 +99,8 @@ export async function runPanelHttp(config: AppConfig, options: TunnelRunOptions 
   await assertTunnelConfigRevision(config.configPath, options.expectedConfigRevision);
   if (options.signal?.aborted) throw cancelled();
   const allowed = new Set(['PATH', 'SYSTEMROOT', 'SYSTEMDRIVE', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'PATHEXT', 'LANG', 'LC_ALL', 'TZ']);
+  // HTTP-managed services must retain the same OpenSSH prerequisite as tunnels.
+  if (process.platform === 'win32') allowed.add('PROGRAMDATA');
   const environment: NodeJS.ProcessEnv = {};
   for (const [name, value] of Object.entries(process.env)) if (allowed.has(name.toUpperCase()) && value !== undefined) environment[name] = value;
   if (options.expectedConfigRevision) environment.WEBCODEX_PANEL_CONFIG_REVISION = options.expectedConfigRevision;

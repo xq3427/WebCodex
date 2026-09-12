@@ -38,6 +38,10 @@ export function normalizeExecutionEnvironment(input?: unknown): Record<string, s
 export function executionEnvironment(configured?: unknown, executable?: string): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
   const inherited = new Set(['PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'TZ']);
+  // Windows OpenSSH reads ProgramData before initializing its logger. Omitting
+  // it can make even `ssh -V` exit 255 without producing stderr. Preserve the
+  // host's system directory instead of guessing a drive or allowing an override.
+  if (process.platform === 'win32') inherited.add('PROGRAMDATA');
   for (const [key, value] of Object.entries(process.env)) {
     if (inherited.has(key.toUpperCase()) && value !== undefined) result[key] = value;
   }

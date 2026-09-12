@@ -1,6 +1,6 @@
 {
   "name": "webcodex-mcp",
-  "version": "0.16.0-preview.7",
+  "version": "0.16.0-preview.8",
   "description": "Workspace-scoped local development tools for ChatGPT over MCP",
   "private": true,
   "type": "module",
@@ -20,7 +20,10 @@
     "export:tools": "node scripts/export-tools.mjs",
     "check:tools": "node scripts/export-tools.mjs --check",
     "audit:repo": "node scripts/audit-repository.mjs",
-    "test:repo": "node --test scripts/test-repository-audit.mjs"
+    "test:repo": "node --test scripts/test-repository-audit.mjs",
+    "package:release": "node scripts/package-release.mjs --installer",
+    "test:package": "node --test scripts/test-release-package.mjs",
+    "test:installers": "node --test test/bootstrap-installers.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

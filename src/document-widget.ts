@@ -4,7 +4,7 @@ import { VERSION } from './version.js';
 import { AppError } from './errors.js';
 
 export const DOCUMENT_WIDGET_URI = `ui://webcodex/document-${VERSION}.html`;
-export const LEGACY_DOCUMENT_WIDGET_URIS = ['ui://webcodex/document-0.15.0-preview.1.html', 'ui://webcodex/document-0.15.0-preview.2.html', 'ui://webcodex/document-0.15.0-preview.3.html', 'ui://webcodex/document-0.15.0-preview.4.html', 'ui://webcodex/document-0.15.0-preview.5.html', 'ui://webcodex/document-0.15.0-preview.6.html', 'ui://webcodex/document-0.15.0-preview.7.html', 'ui://webcodex/document-0.16.0-preview.1.html', 'ui://webcodex/document-0.16.0-preview.2.html', 'ui://webcodex/document-0.16.0-preview.3.html', 'ui://webcodex/document-0.16.0-preview.4.html', 'ui://webcodex/document-0.16.0-preview.5.html', 'ui://webcodex/document-0.16.0-preview.6.html'] as const;
+export const LEGACY_DOCUMENT_WIDGET_URIS = ['ui://webcodex/document-0.15.0-preview.1.html', 'ui://webcodex/document-0.15.0-preview.2.html', 'ui://webcodex/document-0.15.0-preview.3.html', 'ui://webcodex/document-0.15.0-preview.4.html', 'ui://webcodex/document-0.15.0-preview.5.html', 'ui://webcodex/document-0.15.0-preview.6.html', 'ui://webcodex/document-0.15.0-preview.7.html', 'ui://webcodex/document-0.16.0-preview.1.html', 'ui://webcodex/document-0.16.0-preview.2.html', 'ui://webcodex/document-0.16.0-preview.3.html', 'ui://webcodex/document-0.16.0-preview.4.html', 'ui://webcodex/document-0.16.0-preview.5.html', 'ui://webcodex/document-0.16.0-preview.6.html', 'ui://webcodex/document-0.16.0-preview.7.html'] as const;
 export const DOCUMENT_WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 export const DOCUMENT_WIDGET_MAX_BYTES = 5 * 1024 * 1024;
 

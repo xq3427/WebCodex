@@ -36,3 +36,5 @@ jobs:
       - run: npm run check:tools
       - run: npm run test:repo
       - run: npm run audit:repo
+      - run: npm run test:package
+      - run: npm run test:installers

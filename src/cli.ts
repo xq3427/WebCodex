@@ -28,8 +28,10 @@ import { startManagedPanel } from './panel-launcher.js';
 import { readConfigDocument } from './config-admin.js';
 import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
+import { setupConfiguration } from './setup.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
+  setup  [--workspace PATH] [--config PATH] [--proxy URL] [--no-panel]
   init   --workspace PATH [--config PATH]
   doctor [--config PATH]
   diagnostics show [--config PATH]
@@ -68,6 +70,8 @@ workspace rebind generates a new workspace UID when the root changes and preserv
 --worktree records verified Git metadata for an explicitly authorized linked worktree.
 execution preset registers a native command without enabling execution.
 init never overwrites existing configuration; command execution starts disabled.
+setup installs missing local tools and prepares a private configuration, then opens the dashboard.
+Existing configuration is preserved; --workspace only applies to new setup. --no-panel prepares and exits.
 Config edits require a service restart; the local panel can restart its managed connection.
 workspace remove never deletes files.
 codex enable grants dedicated read-only tools access to local Codex session history.
@@ -85,7 +89,7 @@ Use connect --no-panel for the original foreground tunnel lifecycle; --doctor-on
 The dashboard manages only connections it starts; older or --no-panel connections need a one-time handoff.
 `;
 async function main() {
-  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{'expected-config-revision':{type:'string'},config:{type:'string'},port:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'},'no-panel':{type:'boolean'}}});
+  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{proxy:{type:'string'},'expected-config-revision':{type:'string'},config:{type:'string'},port:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'},'no-panel':{type:'boolean'}}});
   const options = tokens.filter(token => token.kind === 'option').map(token => token.name);
   for (const option of options) if (option !== 'prefix-arg' && options.filter(name => name === option).length > 1) throw new AppError('CLI_ERROR','Option --'+option+' may only be supplied once.');
   const command=positionals[0];
@@ -93,6 +97,7 @@ async function main() {
   const action = positionals[1];
   const key = ['workspace', 'execution', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
   const commandOptions: Record<string, { count:number; options:string[] }> = {
+    setup:{count:1,options:['workspace','proxy','no-panel']},
     init:{count:1,options:['workspace']},doctor:{count:1,options:[]},serve:{count:1,options:['transport','expected-config-revision']},
     'config show':{count:2,options:[]},'workspace list':{count:2,options:[]},
     'diagnostics show':{count:2,options:[]},
@@ -114,6 +119,17 @@ async function main() {
   for (const option of options) if (!['config','help',...spec.options].includes(option)) throw new AppError('CLI_ERROR','Option --'+option+' is not supported by '+key+'.');
   const required = (name:'id'|'root'|'alias'|'executable'|'output'|'name') => {const value=values[name];if(!value)throw new AppError('CLI_ERROR',key+' requires --'+name+'.');return value;};
   const print = (result:unknown) => process.stdout.write(JSON.stringify(result,null,2)+'\n');
+  if (command === 'setup') {
+    const result = await setupConfiguration({ config: values.config, workspace: values.workspace, proxyUrl: values.proxy,
+      onProgress: message => process.stderr.write('[WebCodex] ' + message + '\n') });
+    print(result.report);
+    if (!values['no-panel']) {
+      const listener = await startManagedPanel(result.config, { autoStart: false, fallbackPort: true, write: line => process.stderr.write(line) });
+      installLocalPanelShutdown(listener.close);
+      openSetupDashboard(listener.url);
+    }
+    return;
+  }
   const configPath=command==='init'?resolveConfigSelectionPath(values.config??process.env.WEBCODEX_CONFIG??'.webcodex/config.toml'):await discoverConfigPath(values.config);
   if(key==='config migrate'){print(await migrateConfiguration({source:configPath,output:resolveConfigSelectionPath(required('output')),legacyAuth:values['legacy-auth'],legacyConnect:values['legacy-connect'],apply:values.apply}));return;}
   if(key==='device rename'){print(await renameDevice(configPath,required('name')));return;}
@@ -249,6 +265,21 @@ async function main() {
     }
   }
   } catch(error) { await shutdown(); throw error; }
+}
+function openSetupDashboard(url: string) {
+  const notice = () => process.stderr.write('[WebCodex] Browser could not be opened automatically. Open the private dashboard link printed above.\n');
+  try {
+    // Pass the local launch credential as data, never interpolate it into shell source.
+    const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT;
+    if (process.platform === 'win32' && (!systemRoot || !path.win32.isAbsolute(systemRoot))) { notice(); return; }
+    const command = process.platform === 'win32' ? path.join(systemRoot!, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : process.platform === 'darwin' ? '/usr/bin/open' : 'xdg-open';
+    const args = process.platform === 'win32' ? ['-NoProfile', '-NonInteractive', '-Command', 'Start-Process -FilePath $env.WEBCODEX_SETUP_URL'] : [url];
+    const child = spawn(command, args, { shell: false, windowsHide: true, stdio: 'ignore', env: { ...process.env, WEBCODEX_SETUP_URL: url } });
+    const timer = setTimeout(() => { child.kill(); notice(); }, 10000);
+    timer.unref();
+    child.once('error', () => { clearTimeout(timer); notice(); });
+    child.once('close', code => { clearTimeout(timer); if (code !== 0) notice(); });
+  } catch { notice(); }
 }
 function installLocalPanelShutdown(close:()=>Promise<void>) {
   let stopping=false;

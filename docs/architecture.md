@@ -1,6 +1,6 @@
 # 架构
 
-WebCodex 是 TypeScript/Node.js MCP 服务，当前版本为 `0.16.0-preview.7`。ChatGPT 负责理解任务、规划和工具选择，本地服务负责配置授权、执行工具与返回证据。
+WebCodex 是 TypeScript/Node.js MCP 服务，当前版本为 `0.16.0-preview.8`。ChatGPT 负责理解任务、规划和工具选择，本地服务负责配置授权、执行工具与返回证据。
 
 ```text
 ChatGPT → OpenAI Secure MCP Tunnel → 官方本机 tunnel-client
