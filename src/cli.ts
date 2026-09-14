@@ -307,20 +307,19 @@ function openSetupDashboard(url: string) {
   } catch { notice(); }
 }
 
-/** Open an official page when init is run interactively.  Browser launch is
- * best-effort; the URL is always printed so SSH/headless users can open it
- * themselves.  Credentials are read only from the terminal and never logged.
+/**
+ * Show an official page during interactive init.
+ *
+ * The URL is deliberately only printed.  The user opens it, creates or
+ * selects the credential, and pastes the value back into this terminal.  We
+ * do not inspect the page, launch a browser on the user's behalf, or send a
+ * credential through an automation channel.  This also makes the same flow
+ * work over SSH and on headless machines.
  */
-function openOfficialPage(url: string, label: string) {
-  process.stderr.write(`[WebCodex] ${label}: ${url}\n`);
-  try {
-    const command = process.platform === 'win32'
-      ? 'cmd.exe' : process.platform === 'darwin' ? '/usr/bin/open' : 'xdg-open';
-    const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
-    const child = spawn(command, args, { shell: false, windowsHide: true, stdio: 'ignore' });
-    const timer = setTimeout(() => child.kill(), 10000); timer.unref();
-    child.once('close', () => clearTimeout(timer)); child.once('error', () => clearTimeout(timer));
-  } catch { /* Printing the URL is sufficient on headless systems. */ }
+function showOfficialLink(url: string, label: string) {
+  process.stderr.write(`[WebCodex] ${label}\n`);
+  process.stderr.write(`           ${url}\n`);
+  process.stderr.write('[WebCodex] 请在浏览器中打开上面的链接，完成操作后回到此终端粘贴结果。\n');
 }
 
 async function readSecretPrompt(prompt: string): Promise<string> {
@@ -352,12 +351,12 @@ async function configureTunnelCredentials(raw: ReturnType<typeof defaultUnifiedC
     process.stderr.write('[WebCodex] 非交互终端，跳过 Tunnel 配置；可稍后运行 panel 修改。\n');
     return;
   }
-  openOfficialPage('https://platform.openai.com/settings/organization/tunnels', '请在浏览器创建或查看 Tunnel，然后输入 Tunnel ID');
+  showOfficialLink('https://platform.openai.com/settings/organization/tunnels', '请打开官方 Tunnel 页面，创建或查看 Tunnel');
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   let tunnelId = '';
   try { tunnelId = (await rl.question('Tunnel ID（留空则跳过隧道）：')).trim(); } finally { rl.close(); }
   if (!tunnelId) return;
-  openOfficialPage('https://platform.openai.com/api-keys', '请在浏览器创建 API key');
+  showOfficialLink('https://platform.openai.com/api-keys', '请打开官方 API keys 页面，创建 API key');
   const apiKey = await readSecretPrompt('API key（输入时不回显）：');
   if (!apiKey) throw new AppError('CLI_ERROR', '已输入 Tunnel ID，但 API key 为空；请重新运行 init 或使用 panel 配置。');
   raw.tunnel = { ...raw.tunnel, enabled: true, id: tunnelId, apiKey };

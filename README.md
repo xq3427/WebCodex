@@ -6,18 +6,18 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.11，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.12，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.11/WebCodex-0.16.0-preview.11-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.12/WebCodex-0.16.0-preview.12-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
-已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.11)，无需 npm 登录：
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.12)，无需 npm 登录：
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.11 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.12 webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
@@ -36,7 +36,7 @@ node dist/src/cli.js setup --workspace .
 
 PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的工具并打开页面；已有配置原样保留。加 `--no-panel` 仅部署并退出。
 
-首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。也可以使用 `init` 完成交互式初始化：它会先打开 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels)，提示输入 Tunnel ID；随后打开 [API keys](https://platform.openai.com/api-keys)，提示输入 API key。密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
+首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。也可以使用 `init` 完成交互式初始化：它会显示 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 链接，等待你在浏览器中创建或选择 Tunnel 并粘贴 Tunnel ID；随后显示 [API keys](https://platform.openai.com/api-keys) 链接，等待你创建并粘贴 API key。CLI 不读取网页内容，也不会替你启动浏览器；密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
 
 ```text
 webcodex-mcp init --workspace ./workspace
