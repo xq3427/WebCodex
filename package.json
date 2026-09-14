@@ -2,7 +2,6 @@
   "name": "webcodex-mcp",
   "version": "0.16.0-preview.9",
   "description": "Workspace-scoped local development tools for ChatGPT over MCP",
-  "private": true,
   "type": "module",
   "engines": {
     "node": ">=22.16.0"
