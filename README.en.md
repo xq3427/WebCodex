@@ -34,7 +34,12 @@ node dist/src/cli.js setup --workspace .
 
 On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. `setup` installs missing tools for a new configuration and opens the dashboard. Existing configuration stays unchanged. Add `--no-panel` to prepare and exit.
 
-New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. The legacy `init` command still creates configuration without installing tools.
+New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. `init` can perform the first-run credential wizard: it prints and opens the official Tunnel page, asks for the Tunnel ID, then prints and opens the API keys page and asks for the API key. The key is hidden while typing and is written only to the local configuration. Run `connect` afterwards to start MCP. Use `init --no-tunnel` on headless or non-interactive systems and configure credentials later in the local panel.
+
+```text
+webcodex-mcp init --workspace ./workspace
+webcodex-mcp connect
+```
 
 ## Unified configuration and local control center
 
