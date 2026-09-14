@@ -9,6 +9,18 @@
   "bin": {
     "webcodex-mcp": "dist/src/cli.js"
   },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "scripts",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/build-document-widget.mjs",
     "test": "npm run build && node scripts/run-tests.mjs",
