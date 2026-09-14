@@ -33,7 +33,7 @@ import { setupConfiguration, userConfigPath } from './setup.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   setup  [--workspace PATH] [--config PATH] [--proxy URL] [--no-panel]
-  init   --workspace PATH [--config PATH] [--no-tunnel]
+  init   [--workspace PATH] [--config PATH] [--no-tunnel]
   doctor [--config PATH]
   diagnostics show [--config PATH]
   serve  [--config PATH] [--transport stdio|http]
@@ -175,8 +175,9 @@ async function main() {
   if(key==='codex enable'){print(await enableCodexSessions(configPath,values.home));return;}
   if(key==='codex disable'){print(await disableCodexSessions(configPath));return;}
   if(command==='init'){
-    if(!values.workspace)throw new AppError('CLI_ERROR','init requires --workspace PATH.');
-    const root=await realpath(path.resolve(values.workspace));
+    const workspacePath=path.resolve(values.workspace ?? path.join(process.cwd(),'workspace'));
+    await mkdir(workspacePath,{recursive:true});
+    const root=await realpath(workspacePath);
     if(!values.config&&!process.env.WEBCODEX_CONFIG){try{await access(path.resolve('.webcodex/config.json'));throw new AppError('CONFIG_EXISTS','An existing JSON configuration was found. Migrate it explicitly.');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
     const raw=defaultUnifiedConfig(root,configPath);
     raw.http.bearerToken=randomBytes(32).toString('hex');
