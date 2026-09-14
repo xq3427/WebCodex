@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.16.0-preview.11 — 2026-09-15
+
+- `init` 增加首次交互式 Tunnel 向导：打印并尝试打开官方 Tunnel 页面，接收 Tunnel ID 后再打开 API keys 页面接收 API key；密钥输入不回显且不会写入日志。
+- `init` 支持省略 `--workspace`，默认创建当前目录下的 `workspace`；无桌面环境可用 `--no-tunnel` 跳过向导。
+- 管理页面提交 Tunnel 凭据时自动去除首尾粘贴空白，服务拒绝请求时显示安全的错误码和原因。
+
 ## 0.16.0-preview.8 — 2026-09-12
 
 - 修复 Tunnel 启动器异常退出后遗留 `launcher.lock` 导致后续连接无法启动：仅当锁记录的进程已确认退出时自动将锁归档为 `launcher.abandoned-*.json` 并继续启动；活动进程、格式异常或权限错误仍会保留并拒绝接管。
