@@ -51,6 +51,20 @@ sh install.sh --install-dir "$HOME/Applications/WebCodex" --workspace "$HOME/Pro
 
 本地部署完成后，只需在页面完成账户与目录设置：
 
+如果希望直接在命令行完成首次 Tunnel 配置，也可以运行：
+
+```sh
+webcodex-mcp init --workspace ./workspace
+```
+
+命令会打印并尝试打开官方 Tunnel 页面，等待输入 Tunnel ID；随后打印并尝试打开 API keys 页面，等待输入 API key。输入时 key 不回显，保存后运行：
+
+```sh
+webcodex-mcp connect
+```
+
+无桌面或自动化环境可使用 `init --no-tunnel`，稍后在本机管理页面填写凭据。
+
 1. 在 [OpenAI Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 创建自己的 Tunnel。准备有相应权限的 API key。
 2. 在管理页面的隧道设置中填写 Tunnel ID、API key，启用隧道，保留 stdio 传输。保存后启动服务。
 3. 在工作区设置中添加希望 ChatGPT 访问的目录，可分别设置名称和只读权限。

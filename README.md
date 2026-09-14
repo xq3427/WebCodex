@@ -36,7 +36,12 @@ node dist/src/cli.js setup --workspace .
 
 PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的工具并打开页面；已有配置原样保留。加 `--no-panel` 仅部署并退出。
 
-首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。传统 `init` 仅创建配置，仍保留兼容。
+首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。也可以使用 `init` 完成交互式初始化：它会先打开 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels)，提示输入 Tunnel ID；随后打开 [API keys](https://platform.openai.com/api-keys)，提示输入 API key。密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
+
+```text
+webcodex-mcp init --workspace ./workspace
+webcodex-mcp connect
+```
 
 ## 统一配置与本地控制中心
 

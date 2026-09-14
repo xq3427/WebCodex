@@ -28,11 +28,12 @@ import { startManagedPanel } from './panel-launcher.js';
 import { readConfigDocument } from './config-admin.js';
 import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
+import { createInterface } from 'node:readline/promises';
 import { setupConfiguration, userConfigPath } from './setup.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   setup  [--workspace PATH] [--config PATH] [--proxy URL] [--no-panel]
-  init   --workspace PATH [--config PATH]
+  init   --workspace PATH [--config PATH] [--no-tunnel]
   doctor [--config PATH]
   diagnostics show [--config PATH]
   serve  [--config PATH] [--transport stdio|http]
@@ -89,7 +90,7 @@ Use connect --no-panel for the original foreground tunnel lifecycle; --doctor-on
 The dashboard manages only connections it starts; older or --no-panel connections need a one-time handoff.
 `;
 async function main() {
-  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{proxy:{type:'string'},'expected-config-revision':{type:'string'},config:{type:'string'},port:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'},'no-panel':{type:'boolean'}}});
+  const {values,positionals,tokens}=parseArgs({allowPositionals:true,tokens:true,options:{proxy:{type:'string'},'expected-config-revision':{type:'string'},config:{type:'string'},port:{type:'string'},workspace:{type:'string'},transport:{type:'string'},help:{type:'boolean',short:'h'},id:{type:'string'},root:{type:'string'},name:{type:'string'},'read-only':{type:'boolean'},'new-identity':{type:'boolean'},worktree:{type:'boolean'},alias:{type:'string'},executable:{type:'string'},preset:{type:'string'},command:{type:'string'},entry:{type:'string'},prefix:{type:'string'},'prefix-arg':{type:'string',multiple:true},home:{type:'string'},output:{type:'string'},'legacy-auth':{type:'string'},'legacy-connect':{type:'string'},apply:{type:'boolean'},'doctor-only':{type:'boolean'},'no-panel':{type:'boolean'},'no-tunnel':{type:'boolean'}}});
   const options = tokens.filter(token => token.kind === 'option').map(token => token.name);
   for (const option of options) if (option !== 'prefix-arg' && options.filter(name => name === option).length > 1) throw new AppError('CLI_ERROR','Option --'+option+' may only be supplied once.');
   const command=positionals[0];
@@ -98,7 +99,7 @@ async function main() {
   const key = ['workspace', 'execution', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
   const commandOptions: Record<string, { count:number; options:string[] }> = {
     setup:{count:1,options:['workspace','proxy','no-panel']},
-    init:{count:1,options:['workspace']},doctor:{count:1,options:[]},serve:{count:1,options:['transport','expected-config-revision']},
+    init:{count:1,options:['workspace','no-tunnel']},doctor:{count:1,options:[]},serve:{count:1,options:['transport','expected-config-revision']},
     'config show':{count:2,options:[]},'workspace list':{count:2,options:[]},
     'diagnostics show':{count:2,options:[]},
     connect:{count:1,options:['doctor-only','no-panel']},'tunnel status':{count:2,options:[]},
@@ -179,6 +180,7 @@ async function main() {
     if(!values.config&&!process.env.WEBCODEX_CONFIG){try{await access(path.resolve('.webcodex/config.json'));throw new AppError('CONFIG_EXISTS','An existing JSON configuration was found. Migrate it explicitly.');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
     const raw=defaultUnifiedConfig(root,configPath);
     raw.http.bearerToken=randomBytes(32).toString('hex');
+    if (!values['no-tunnel']) await configureTunnelCredentials(raw);
     await validateConfig(raw,configPath);
     await writePrivateConfig(configPath,raw);
     process.stdout.write(JSON.stringify({ok:true,config:configPath,workspace:root,execution_mode:'disabled'},null,2)+'\n');return;
@@ -302,6 +304,63 @@ function openSetupDashboard(url: string) {
     child.once('error', () => { clearTimeout(timer); notice(); });
     child.once('close', code => { clearTimeout(timer); if (code !== 0) notice(); });
   } catch { notice(); }
+}
+
+/** Open an official page when init is run interactively.  Browser launch is
+ * best-effort; the URL is always printed so SSH/headless users can open it
+ * themselves.  Credentials are read only from the terminal and never logged.
+ */
+function openOfficialPage(url: string, label: string) {
+  process.stderr.write(`[WebCodex] ${label}: ${url}\n`);
+  try {
+    const command = process.platform === 'win32'
+      ? 'cmd.exe' : process.platform === 'darwin' ? '/usr/bin/open' : 'xdg-open';
+    const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+    const child = spawn(command, args, { shell: false, windowsHide: true, stdio: 'ignore' });
+    const timer = setTimeout(() => child.kill(), 10000); timer.unref();
+    child.once('close', () => clearTimeout(timer)); child.once('error', () => clearTimeout(timer));
+  } catch { /* Printing the URL is sufficient on headless systems. */ }
+}
+
+async function readSecretPrompt(prompt: string): Promise<string> {
+  const input = process.stdin;
+  if (!input.isTTY || typeof input.setRawMode !== 'function') {
+    const rl = createInterface({ input, output: process.stderr });
+    try { return (await rl.question(prompt)).trim(); } finally { rl.close(); }
+  }
+  process.stderr.write(prompt);
+  return await new Promise<string>((resolve, reject) => {
+    let value = '';
+    const onData = (chunk: Buffer | string) => {
+      const text = String(chunk);
+      for (const char of text) {
+        if (char === '\r' || char === '\n') {
+          input.setRawMode?.(false); input.pause(); input.off('data', onData);
+          process.stderr.write('\n'); resolve(value.trim()); return;
+        }
+        if (char === '\u0003') { input.setRawMode?.(false); input.pause(); input.off('data', onData); reject(new AppError('CLI_CANCELLED', 'Initialization was cancelled.')); return; }
+        if (char === '\u0008' || char === '\u007f') value = value.slice(0, -1); else if (char >= ' ') value += char;
+      }
+    };
+    input.setEncoding('utf8'); input.on('data', onData); input.setRawMode?.(true); input.resume();
+  });
+}
+
+async function configureTunnelCredentials(raw: ReturnType<typeof defaultUnifiedConfig>) {
+  if (!process.stdin.isTTY) {
+    process.stderr.write('[WebCodex] 非交互终端，跳过 Tunnel 配置；可稍后运行 panel 修改。\n');
+    return;
+  }
+  openOfficialPage('https://platform.openai.com/settings/organization/tunnels', '请在浏览器创建或查看 Tunnel，然后输入 Tunnel ID');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  let tunnelId = '';
+  try { tunnelId = (await rl.question('Tunnel ID（留空则跳过隧道）：')).trim(); } finally { rl.close(); }
+  if (!tunnelId) return;
+  openOfficialPage('https://platform.openai.com/api-keys', '请在浏览器创建 API key');
+  const apiKey = await readSecretPrompt('API key（输入时不回显）：');
+  if (!apiKey) throw new AppError('CLI_ERROR', '已输入 Tunnel ID，但 API key 为空；请重新运行 init 或使用 panel 配置。');
+  raw.tunnel = { ...raw.tunnel, enabled: true, id: tunnelId, apiKey };
+  process.stderr.write('[WebCodex] Tunnel 凭据已写入本机配置（密钥不会显示）。\n');
 }
 function installLocalPanelShutdown(close:()=>Promise<void>) {
   let stopping=false;
