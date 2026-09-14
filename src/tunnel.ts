@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, constants } from 'node:fs';
-import { access, lstat, mkdir, open, readFile, realpath, unlink } from 'node:fs/promises';
+import { access, lstat, mkdir, open, readFile, realpath, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { request } from 'node:http';
@@ -63,6 +63,29 @@ const invalid = () => safeError('TUNNEL_CONFIG_INVALID', 'Configure the tunnel I
 const denied = () => safeError('TUNNEL_CLIENT_INVALID', 'The tunnel client path, installation source or SHA-256 could not be verified. Reinstall the official client or configure an explicit clientPath and clientSha256.');
 const unsafePath = () => safeError('TUNNEL_PATH_INVALID', 'Tunnel control paths must be absolute, ordinary local paths without links, quotes or control characters.');
 const versionPattern = /^v\d+\.\d+\.\d+$/;
+
+/**
+ * Recover only a lock whose recorded owner is definitely gone.  A malformed
+ * lock or a live PID remains untouched because it may belong to another
+ * launcher, and every recovered lock is retained for local diagnosis.
+ */
+async function archiveAbandonedLauncherLock(controlDirectory: string, lockFile: string): Promise<boolean> {
+  let owner: { pid?: number };
+  try {
+    const info = await lstat(lockFile);
+    if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 || info.size > 4096) return false;
+    owner = JSON.parse(await readFile(lockFile, 'utf8')) as { pid?: number };
+    if (!Number.isSafeInteger(owner.pid) || owner.pid! <= 0) return false;
+  } catch { return false; }
+  try { process.kill(owner.pid!, 0); return false; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') return false;
+  }
+  const suffix = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + owner.pid;
+  const archived = path.join(controlDirectory, `launcher.abandoned-${suffix}.json`);
+  try { await rename(lockFile, archived); return true; }
+  catch { return false; }
+}
 
 function contains(root: string, target: string): boolean {
   const relative = path.relative(root, target);
@@ -243,13 +266,17 @@ export async function runTunnel(config: TunnelConfig, options: TunnelRunOptions 
   const lockFile = path.join(controlDirectory, 'launcher.lock');
   checkCancelled(options.signal);
   let lock;
-  try { lock = await open(lockFile, 'wx', 0o600); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { lock = await open(lockFile, 'wx', 0o600); break; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw safeError('TUNNEL_CONTROL_UNAVAILABLE', 'The tunnel launcher lock could not be created. Check the local control directory, filesystem availability and write permissions.');
+      }
+      if (attempt === 0 && await archiveAbandonedLauncherLock(controlDirectory, lockFile)) continue;
       throw safeError('TUNNEL_ALREADY_RUNNING', 'A launcher lock already exists; it may belong to an existing connection or remain after an interrupted launch. Run tunnel status with the same --config selection before inspecting the lock locally.');
     }
-    throw safeError('TUNNEL_CONTROL_UNAVAILABLE', 'The tunnel launcher lock could not be created. Check the local control directory, filesystem availability and write permissions.');
   }
+  if (!lock) throw safeError('TUNNEL_CONTROL_UNAVAILABLE', 'The tunnel launcher lock could not be created. Check the local control directory, filesystem availability and write permissions.');
   const owner = randomUUID();
   try {
     await lock.writeFile(JSON.stringify({ pid: process.pid, owner, started_at: new Date().toISOString() }) + '\n');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFile, mkdtemp, mkdir, writeFile, readFile, rm, access, symlink, realpath } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, writeFile, readFile, rm, access, symlink, realpath, readdir } from 'node:fs/promises';
 import fsPromises from 'node:fs/promises';
 import { syncBuiltinESMExports } from 'node:module';
 import path from 'node:path';
@@ -362,6 +362,21 @@ test('an existing launcher lock and a linked state path are never overwritten', 
     f.config.stateDir = linked;
     await assert.rejects(runTunnel(f.config), { code: 'TUNNEL_PATH_INVALID' });
     await assert.rejects(f.records(), { code: 'ENOENT' });
+  } finally { await f.clean(); }
+});
+
+test('a lock owned by an exited process is archived and does not block the next launch', async () => {
+  const f = await fixture();
+  try {
+    const control = path.join(f.config.stateDir, 'tunnel');
+    await mkdir(control, { recursive: true });
+    const lock = path.join(control, 'launcher.lock');
+    await writeFile(lock, JSON.stringify({ pid: 2147483647, owner: 'abandoned', started_at: new Date(0).toISOString() }));
+    const result = await runTunnel(f.config);
+    assert.equal(result.exit_code, 0);
+    const entries = await readdir(control);
+    assert.equal(entries.includes('launcher.lock'), false);
+    assert.equal(entries.filter(name => name.startsWith('launcher.abandoned-') && name.endsWith('-2147483647.json')).length, 1);
   } finally { await f.clean(); }
 });
 

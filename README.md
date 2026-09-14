@@ -170,7 +170,7 @@ npm run audit:repo
 | --- | --- |
 | doctor 找不到 rg | 安装 ripgrep，或在所选配置中设置 `rgPath` |
 | SQLite ExperimentalWarning | Node 内置 SQLite 提示，单独出现不表示服务失败 |
-| `TUNNEL_ALREADY_RUNNING` | 用相同配置检查 `tunnel status`；不删除锁或反复开新连接 |
+| `TUNNEL_ALREADY_RUNNING` | 程序会自动归档已确认失效的锁；若仍返回此错误，先检查 `tunnel status` 和原终端，不要手工删除锁或反复开新连接 |
 | 应用有工具、对话却不能调用 | 确认正确连接已启用，按当前 ChatGPT 界面更新工具，再核对 `system_status` 与实际调用 |
 | 回存停在 pending 或失败 | 查看 `fs_save_file_status` 的阶段、错误码和额度；ID 可见不代表授权或保存成功 |
 | PDF 组件出现但不能总结 | 检查 `document_read`，只有返回 `ready` 和实际正文才可总结 |

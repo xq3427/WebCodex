@@ -102,7 +102,7 @@ node dist/src/cli.js diagnostics show
 | network_timeout / poll_not_fresh | 检查本机出站网络与所配置的代理 |
 | mcp_not_ready / local_unhealthy | 检查构建、工作区、运行数据与服务占用 |
 | connected_no_tool_calls | 已有近期连接证据，尚未观察到工具响应；回到对话做实际调用 |
-| `TUNNEL_ALREADY_RUNNING` | 检查原终端和同一配置的状态；可能已有连接，也可能异常退出留锁 |
+| `TUNNEL_ALREADY_RUNNING` | 程序会自动归档能确认所属进程已退出的失效锁；若仍返回此错误，说明进程仍在运行、锁格式异常或本机无法安全验证。先检查原终端和同一配置的状态，不要手工删除锁 |
 | `TUNNEL_CONTROL_UNAVAILABLE` | 检查控制目录及权限；不能据此认定存在另一连接 |
 
 不要仅凭 `not_running` 删除锁。需要在本机核实原启动器、相关客户端/daemon 和端口后处理残留。程序不会抢占另一启动器。
