@@ -58,7 +58,7 @@ for(const transport of ['stdio','http'] as const) test(`v0.10 ${transport} serve
   try {
     const call=(name:string,args:Record<string,unknown>={})=>connection.client.callTool({name,arguments:args});
     const tools=(await connection.client.listTools()).tools;
-    assert.equal(tools.length,65);assert.equal(tools.find(tool=>tool.name==='workspace_health')?.annotations?.readOnlyHint,true);
+    assert.equal(tools.length,66);assert.equal(tools.find(tool=>tool.name==='workspace_health')?.annotations?.readOnlyHint,true);
     assert.equal(result(await call('system_status')).version,VERSION);
     const list=result(await call('workspace_list'));
     assert.deepEqual(list.workspaces.map((w:any)=>w.status),['available','available','missing','disabled']);

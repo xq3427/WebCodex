@@ -27,7 +27,7 @@ test('real stdio records discovery, SDK schema rejection, device rejection and s
   transport.stderr?.on('data',data=>{stderr+=String(data);});
   try {
     await client.connect(transport);
-    const tools=await client.listTools();assert.equal(tools.tools.length,65);
+    const tools=await client.listTools();assert.equal(tools.tools.length,66);
     assert.match(client.getInstructions()?.slice(0,512)??'',/SVG.*fs_write/s);
     const status:any=(await client.callTool({name:'system_status'})).structuredContent;
     assert.equal(status.data.version,VERSION);assert.equal(status.data.capabilities.command_execution.enabled,false);

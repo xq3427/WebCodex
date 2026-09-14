@@ -65,7 +65,7 @@ async function workflow(client: Client, f: Fixture) {
   assert.equal(device, f.raw.device.id);
   const ws = { workspace_id: 'default' }, owner = { ...ws, expected_device_id: device };
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 65);
+  assert.equal(tools.length,66);
   for (const name of ['workspace_context', 'task_list', 'task_read', 'exec_wait', 'exec_tail']) assert.equal(tools.find(tool => tool.name === name)?.annotations?.readOnlyHint, true);
   for (const name of ['task_create', 'task_checkpoint', 'task_export']) {
     const tool = tools.find(tool => tool.name === name)!;

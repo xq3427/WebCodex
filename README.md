@@ -6,18 +6,18 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.8，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.9，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.8/WebCodex-0.16.0-preview.8-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.9/WebCodex-0.16.0-preview.9-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
-已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.8)，无需 npm 登录：
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.9)，无需 npm 登录：
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.8 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.9 webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
@@ -62,6 +62,28 @@ Windows 可使用 `D:/WebCodex/config.toml`。[TOML 模板](examples/config.exam
 配置变更需要重启对应服务。页面可以管理由它启动的连接；旧版、`connect --no-panel` 或独立 `serve` 启动的服务，需要先在原终端正常停止，再从页面启动。页面不会强行接管外部进程。详见[配置指南](docs/local-configuration.md)和[控制中心指南](docs/local-panel.md)。
 
 ## 接入 ChatGPT 网页
+
+### 固定只读 SSH 探测
+
+当 ChatGPT 对通用 `exec_start` 的 SSH 调用进行安全拦截时，可在 v2 配置中声明远程主机并使用 `ssh_readonly_probe`。该工具只接受 `identity`、`roots`、`project_candidates`、`git_status`、`processes`、`gpu`、`directory_listing` 七种探测类型，服务端生成固定命令，禁止提交任意远程 shell。
+
+```json
+{
+  "remotes": {
+    "h20": {
+      "name": "H20",
+      "host": "172.22.207.231",
+      "port": 30205,
+      "user": "root",
+      "identityFile": "D:/Documents/Star/ssh/ssh-key",
+      "projectRoot": "/workspace/SourceDetection",
+      "strictHostKeyChecking": true
+    }
+  }
+}
+```
+
+密钥文件和远程地址仅保存在本机配置，不要提交到 Git。连接前先确认 `system_status` 和 `workspace_list`，再调用 `ssh_readonly_probe`。该工具不会复制代码、启动训练或修改远程文件。
 
 推荐通过 **OpenAI 官方 Secure MCP Tunnel** 连接本机 stdio 服务。此模式无需自建公网服务器、域名、Cloudflare、浏览器扩展或 Actions 服务；账户仍须具备相应 Platform 隧道和 ChatGPT 连接权限。
 

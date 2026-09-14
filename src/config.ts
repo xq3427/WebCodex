@@ -16,6 +16,7 @@ import { assertCompatibleWorkspaceRoots } from './workspace-overlap.js';
 const text = z.string().min(1).refine(value => !/[\x00-\x1f\x7f]/.test(value));
 const argument = z.string().refine(value => !value.includes('\0') && Buffer.byteLength(value) <= 128 * 1024);
 const executableSchema = z.union([text, z.object({ command: text, args: z.array(argument).max(256) }).strict()]);
+const remoteSchema = z.object({ name: text.optional(), host: z.string().min(1).max(255).refine(v => !/[\x00-\x1f\x7f\s]/.test(v)), port: z.number().int().min(1).max(65535).default(22), user: z.string().min(1).max(128).refine(v => !/[\x00-\x1f\x7f\s]/.test(v)), identityFile: text, projectRoot: text.optional(), knownHostsFile: text.optional(), strictHostKeyChecking: z.literal(true).default(true) }).strict();
 const profileSchema = z.object({ allowedExecutables: z.record(executableSchema), env: z.record(z.string()).refine(validExecutionEnvironment).optional() }).strict();
 const workspaceSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), name: z.string().min(1).max(120).refine(value => !/[\x00-\x1f\x7f]/.test(value)), root: text, readOnly: z.boolean().default(false) }).strict();
 const executionSchema = z.object({ mode: z.enum(['disabled','trusted-host']).default('disabled'), commandPolicy: z.enum(['all','allowlist']).default('allowlist'), allowedExecutables: z.record(executableSchema).default({}), maxConcurrent: z.number().int().min(1).max(8).default(2), maxTimeoutMs: z.number().int().min(100).max(86400000).default(600000), maxOutputBytes: z.number().int().min(1024).max(52428800).default(5242880) }).strict();
@@ -47,6 +48,7 @@ const v2Schema = baseSchema.extend({
   workspaces: z.array(z.union([text, workspaceSchema.partial({ id: true, name: true }).extend({ uid: z.string().uuid().optional(), enabled: z.boolean().optional(), onUnavailable: z.enum(['error', 'skip']).optional(), executionProfile: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/).optional(), worktree: z.object({ gitDir:text, commonDir:text }).strict().optional() })])).min(1).max(32),
   stateDir: text.default('${configDir}/state'), toolsDir: text.default('${configDir}/tools'), nodePath: text.default('auto'), gitPath: text.default('auto'), rgPath: text.default('auto'),
   tunnel: z.object({ enabled: z.boolean().default(false), id: z.string().max(207).default(''), apiKey: secret.default(''), proxyUrl: secret.default(''), clientPath: text.default('auto'), clientVersion: z.string().regex(/^(?:auto|v\d+\.\d+\.\d+)$/).default('auto'), clientSha256: z.string().regex(/^[a-fA-F0-9]{64}$/).optional() }).strict().default({}),
+  remotes: z.record(remoteSchema).refine(value => Object.keys(value).length <= 32).default({}),
   server: z.object({ transport: z.enum(['stdio', 'http']).default('stdio') }).strict().default({}),
   http: z.object({ port: z.number().int().min(1024).max(65535).default(8765), bearerToken: secret.default('') }).strict().default({}),
   // Historical experiment only: accepting this section never activates it.
@@ -95,6 +97,7 @@ export function defaultUnifiedConfig(root: string, configPath: string, options: 
     tasks:{maxTasksPerWorkspace:100,maxRevisionsPerTask:100,maxTrackedFiles:20,maxSnapshotBytes:16777216},
     projectContext:{maxDepth:32,maxFileBytes:65536,maxTotalBytes:262144},
     tunnel: { enabled: false, id: '', apiKey: '', proxyUrl: '', clientPath: 'auto', clientVersion: 'auto' },
+    remotes: {},
     server: { transport: 'stdio' as const }, http: { port: 8765, bearerToken: '' },
     localPanel: { port: 8767 },
     codexSessions: { enabled: false, home: null as string | null, maxWindowsPerRequest: 4, maxRecordBytes: 1048576 }

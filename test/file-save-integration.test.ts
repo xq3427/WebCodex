@@ -120,7 +120,7 @@ async function fixture(t: TestContext) {
 
 test('file save exposes the optional native file-parameter schema and keeps completion tools component-only', async t => {
   const f = await fixture(t), tools = (await f.client.listTools()).tools;
-  assert.equal(tools.length, 65);
+  assert.equal(tools.length,66);
   const open = tools.find(tool => tool.name === 'fs_save_file')!, status = tools.find(tool => tool.name === 'fs_save_file_status')!;
   assert.ok(open); assert.ok(status); assert.equal(open.annotations?.readOnlyHint, false);
   assert.deepEqual(open._meta?.['openai/fileParams'], ['file']);

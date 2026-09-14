@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 export interface WorkspaceConfig { id: string; uid?: string; name: string; root: string; readOnly: boolean; enabled?: boolean; onUnavailable?: 'error' | 'skip'; executionProfile?: string; worktree?: { gitDir: string; commonDir: string } }
 export type ExecutableConfig = string | { command: string; args: string[] };
 export interface ExecutionProfile { allowedExecutables: Record<string, ExecutableConfig>; env?: Record<string, string> }
+export interface RemoteHostConfig { name?: string; host: string; port: number; user: string; identityFile: string; projectRoot?: string; knownHostsFile?: string; strictHostKeyChecking?: boolean }
 export interface FileWidgetConfig { mode: 'automatic' | 'manual'; compact: boolean; closeAfterSend: boolean }
 /** Legacy settings are accepted for migration only; no browser worker is shipped. */
 export interface NativeAttachmentConfig {
@@ -20,6 +21,7 @@ export interface AppConfig {
   nodePath?: string;
   gitPath?: string;
   tunnel?: { enabled: boolean; id: string; apiKey: string; proxyUrl: string; clientPath: string; clientVersion: string; clientSha256?: string };
+  remotes?: Record<string, RemoteHostConfig>;
   server?: { transport: 'stdio' | 'http' };
   tasks?: {maxTasksPerWorkspace:number;maxRevisionsPerTask:number;maxTrackedFiles:number;maxSnapshotBytes:number};
   projectContext?: {maxDepth:number;maxFileBytes:number;maxTotalBytes:number};
