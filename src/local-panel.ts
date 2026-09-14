@@ -224,7 +224,20 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
       upload_status: 'not_uploaded', model_access: 'unverified', content_processing: 'none', upload_method: 'chatgpt_native_attachment' };
   }
   const server = createServer({ maxHeaderSize: 8192 }, async (req, res) => {
-    const fail = (status: number, code: string) => send(res, status, { ok: false, error: { code } });
+    // Keep pre-authentication and request-shape failures diagnosable.  These
+    // paths used to return only a code, which made the admin page collapse
+    // every rejected save into the vague “本机服务拒绝了此操作” message.
+    const fail = (status: number, code: string) => {
+      const messages: Record<string, string> = {
+        REQUEST_ORIGIN_DENIED: '请求来源与面板地址不一致。请使用启动命令输出的 127.0.0.1 链接打开面板。',
+        PANEL_AUTH_REQUIRED: '面板凭据缺失或已失效。请从本机启动命令重新打开带凭据的链接。',
+        JSON_REQUIRED: '管理请求必须使用 application/json。请刷新页面后重试。',
+        REQUEST_TOO_LARGE: '配置请求过大。请减少一次修改的字段数量。',
+        PANEL_CLOSING: '服务正在关闭，请稍候刷新页面。',
+        PANEL_BUSY: '本机正在处理另一个请求，请稍后重试。',
+      };
+      send(res, status, { ok: false, error: { code, message: messages[code] ?? '本机拒绝了该请求。' } });
+    };
     if (req.headers.host !== '127.0.0.1:' + port || req.headers.origin !== undefined && req.headers.origin !== origin) { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
     if (req.url === '/' && req.method === 'GET') { send(res, 200, html, true); return; }
     if (req.url === '/files' && req.method === 'GET' && options.management) { send(res, 200, legacyHtml, true); return; }
