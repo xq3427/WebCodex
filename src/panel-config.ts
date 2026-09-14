@@ -145,7 +145,10 @@ async function validatePanelCandidate(raw:RawConfig,fullPath:string) {
   if(data.projectContext.maxFileBytes>data.projectContext.maxTotalBytes){add('projectContext.maxFileBytes','projectBytes');add('projectContext.maxTotalBytes','projectBytes');}
   if(data.tunnel.id && !/^tunnel_[a-zA-Z0-9_-]+$/.test(data.tunnel.id) || data.tunnel.enabled && !data.tunnel.id)add('tunnel.id','tunnelId');
   if(data.tunnel.enabled&&!data.tunnel.apiKey)add('secrets.tunnelApiKey','tunnelKey');
-  if(!isPublicProxyUrl(data.tunnel.proxyUrl))add('tunnel.proxyUrl','proxy');
+  // An empty proxy means direct network access and is valid. Only validate a
+  // non-empty value; the previous unconditional check made every unrelated
+  // panel save fail on fresh installations where proxyUrl defaults to ''.
+  if(data.tunnel.proxyUrl && !isPublicProxyUrl(data.tunnel.proxyUrl))add('tunnel.proxyUrl','proxy');
   if(data.tunnel.clientPath!=='auto'&&!data.tunnel.clientSha256)add('tunnel.clientSha256','requiredSha256');
   if(data.server.transport==='http'&&data.http.bearerToken.length<32)add('secrets.httpBearerToken','httpToken');
   if(data.codexSessions.home==='auto'||data.codexSessions.enabled&&!data.codexSessions.home)add('codexSessions.home','codexHome');
