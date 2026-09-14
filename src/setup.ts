@@ -1,5 +1,6 @@
 import { lstat, mkdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { defaultUnifiedConfig, discoverConfigPath, loadConfig, resolveConfigSelectionPath, validateConfig } from './config.js';
 import { writePrivateConfig } from './config-migration.js';
@@ -12,6 +13,17 @@ export interface SetupOptions {
   workspace?: string;
   proxyUrl?: string;
   onProgress?: (message: string) => void;
+}
+
+/** Standard per-user configuration location used when an npm-installed CLI is
+ * launched from node_modules (where creating .webcodex would be surprising). */
+export function userConfigPath(): string {
+  const home = homedir();
+  const directory = process.platform === 'win32'
+    ? path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'WebCodex')
+    : process.platform === 'darwin' ? path.join(home, 'Library', 'Application Support', 'WebCodex')
+      : path.join(process.env.XDG_CONFIG_HOME || path.join(home, '.config'), 'webcodex');
+  return path.join(directory, 'config.toml');
 }
 
 /** An explicit missing selection is a new install; implicit discovery preserves JSON and TOML equally. */

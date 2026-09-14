@@ -28,7 +28,7 @@ import { startManagedPanel } from './panel-launcher.js';
 import { readConfigDocument } from './config-admin.js';
 import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
-import { setupConfiguration } from './setup.js';
+import { setupConfiguration, userConfigPath } from './setup.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   setup  [--workspace PATH] [--config PATH] [--proxy URL] [--no-panel]
@@ -130,7 +130,29 @@ async function main() {
     }
     return;
   }
-  const configPath=command==='init'?resolveConfigSelectionPath(values.config??process.env.WEBCODEX_CONFIG??'.webcodex/config.toml'):await discoverConfigPath(values.config);
+  let configPath: string;
+  try {
+    configPath = command==='init' ? resolveConfigSelectionPath(values.config??process.env.WEBCODEX_CONFIG??'.webcodex/config.toml') : await discoverConfigPath(values.config);
+  } catch (error) {
+    // npm users commonly invoke `webcodex-mcp connect` from node_modules.
+    // Bootstrap only connect (never arbitrary commands), and only when no
+    // explicit config was selected. Existing files remain untouched.
+    if (command === 'connect' && values.config === undefined && process.env.WEBCODEX_CONFIG === undefined && error instanceof AppError && error.code === 'CONFIG_NOT_FOUND') {
+      const target = userConfigPath();
+      const result = await setupConfiguration({ config: target, workspace: path.join(path.dirname(target), 'workspace'), onProgress: message => process.stderr.write('[WebCodex] ' + message + '\n') });
+      process.stderr.write('[WebCodex] No configuration was found, so a new user configuration was created.\n');
+      if (result.config) {
+        const config = result.config;
+        if (!values['no-panel']) {
+          const listener = await startManagedPanel(config, { autoStart: false, fallbackPort: true, write: line => process.stderr.write(line) });
+          installLocalPanelShutdown(listener.close);
+          openSetupDashboard(listener.url);
+          return;
+        }
+        configPath = target;
+      } else throw error;
+    } else throw error;
+  }
   if(key==='config migrate'){print(await migrateConfiguration({source:configPath,output:resolveConfigSelectionPath(required('output')),legacyAuth:values['legacy-auth'],legacyConnect:values['legacy-connect'],apply:values.apply}));return;}
   if(key==='device rename'){print(await renameDevice(configPath,required('name')));return;}
   if(key==='workspace rebind'){print(await rebindWorkspace(configPath,{id:required('id'),root:required('root'),name:values.name,readOnly:values['read-only'],worktree:values.worktree,newIdentity:values['new-identity']}));return;}

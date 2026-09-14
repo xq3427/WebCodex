@@ -22,6 +22,8 @@ npx --yes --package webcodex-mcp@0.16.0-preview.9 webcodex-mcp setup --workspace
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
 
+如果直接运行已安装的 `webcodex-mcp connect` 时没有找到配置，CLI 会在系统用户配置目录自动创建一次初始配置并打开控制页面：Linux 为 `~/.config/webcodex/config.toml`，macOS 为 `~/Library/Application Support/WebCodex/config.toml`，Windows 为 `%LOCALAPPDATA%\\WebCodex\\config.toml`。该行为只在未提供 `--config` 且确实不存在配置时触发，不会覆盖已有文件；也可以显式运行 `webcodex-mcp setup --config <路径>` 自定义位置。
+
 开发者也可从源码安装，需要 Node.js ≥22.16：
 
 ```text
