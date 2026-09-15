@@ -111,6 +111,15 @@ export async function editConfig(configPath: string, edit: (raw: RawConfig, curr
   return editConfigLocked(configPath, edit, expectedSha256);
 }
 
+/** One explicit local action for users who want Codex-like host access. */
+export async function setFullLocalAccess(configPath: string) {
+  return editConfig(configPath, raw => {
+    raw.execution.mode = 'trusted-host';
+    raw.execution.commandPolicy = 'all';
+    for (const workspace of raw.workspaces) if (typeof workspace !== 'string') workspace.readOnly = false;
+  });
+}
+
 /** Internal local editor input. Raw data includes secrets and must never be sent to a browser or log. */
 export async function readConfigDocument(configPath: string) {
   const fullPath = path.resolve(configPath);

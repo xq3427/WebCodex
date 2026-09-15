@@ -11,7 +11,7 @@
     }
   ],
   "execution": {
-    "mode": "disabled",
+    "mode": "trusted-host",
     "commandPolicy": "all",
     "allowedExecutables": {
       "node": {

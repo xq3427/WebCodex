@@ -19,7 +19,9 @@ test('setup without a workspace keeps its default outside the protected .webcode
     assert.equal(installations, 1);
     assert.equal(result.report.created, true);
     assert.equal(result.config.workspaces[0].root, path.join(base, 'workspace'));
-    assert.equal(result.config.execution.mode, 'disabled');
+    assert.equal(result.config.execution.mode, 'trusted-host');
+    assert.equal(result.config.execution.commandPolicy, 'all');
+    assert.equal(result.config.workspaces[0].readOnly, false);
     assert.equal(result.config.codexSessions.enabled, false);
     await access(path.join(base, 'workspace'));
     await assert.rejects(access(path.join(base, '.webcodex', 'workspace')), { code: 'ENOENT' });

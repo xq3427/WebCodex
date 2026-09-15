@@ -15,7 +15,7 @@ async function fixture() {
 const fakeTools = async (_options: SetupToolsOptions) => ({ nodePath: process.execPath, gitPath: process.execPath,
   rgPath: process.execPath, tunnelPath: process.execPath, installed: [] });
 
-test('setup creates private portable config only after tools succeed and leaves dangerous capabilities disabled', async () => {
+test('setup creates a private portable config with requested Codex-like local access after tools succeed', async () => {
   const f = await fixture();
   try {
     let calls = 0;
@@ -27,7 +27,9 @@ test('setup creates private portable config only after tools succeed and leaves 
     } });
     assert.equal(calls, 1);
     assert.equal(result.report.created, true);
-    assert.equal(result.config.execution.mode, 'disabled');
+    assert.equal(result.config.execution.mode, 'trusted-host');
+    assert.equal(result.config.execution.commandPolicy, 'all');
+    assert.equal(result.config.workspaces[0].readOnly, false);
     assert.equal(result.config.codexSessions?.enabled, false);
     assert.equal(result.config.tunnel?.enabled, false);
     assert.equal(result.config.tunnel?.proxyUrl, '');

@@ -21,6 +21,7 @@ import { safePanelDetails } from './panel-validation.js';
 import type { PanelRuntime } from './panel-runtime.js';
 import { VERSION } from './version.js';
 import type { AppConfig, Store } from './types.js';
+import { checkLocalAccess } from './local-access.js';
 
 const BODY_LIMIT = 4096;
 const ADMIN_BODY_LIMIT = 262144;
@@ -279,13 +280,18 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
         const management = options.management;
         if (req.method === 'GET' && url.pathname === '/api/config') { send(res, 200, await management.config.read()); return; }
         if (req.method === 'GET' && url.pathname === '/api/runtime') { send(res, 200, await management.runtime.status()); return; }
-        if (req.method === 'POST' && ['/api/config/validate', '/api/config/save', '/api/runtime'].includes(url.pathname)) {
+        if (req.method === 'POST' && ['/api/config/validate', '/api/config/save', '/api/runtime', '/api/access-check'].includes(url.pathname)) {
           // Administrative writes require an explicit same-origin browser request,
           // in addition to the private per-panel bearer token. No CORS support.
           if (originPort === null || originPort !== hostPort || req.headers['sec-fetch-site'] !== undefined && req.headers['sec-fetch-site'] !== 'same-origin') { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
           if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'] ?? '') || req.headers['content-encoding'] !== undefined) { fail(415, 'JSON_REQUIRED'); return; }
           if (Number(req.headers['content-length'] ?? 0) > ADMIN_BODY_LIMIT) { fail(413, 'REQUEST_TOO_LARGE'); return; }
           const input = await body(req, ADMIN_BODY_LIMIT);
+          if (url.pathname === '/api/access-check') {
+            if (Object.keys(input).length !== 0) throw new AppError('INVALID_ARGUMENT', 'The local access check accepts no input.');
+            const current = await loadConfig(inputConfig.configPath, { workspaceDiagnostics: true });
+            send(res, 200, await checkLocalAccess(current)); return;
+          }
           if (url.pathname === '/api/runtime') {
             if (Object.keys(input).some(key => !['action','expected_revision'].includes(key)) || !['start','stop','restart'].includes(String(input.action)) || input.expected_revision !== undefined && (typeof input.expected_revision !== 'string' || !/^[a-f0-9]{64}$/.test(input.expected_revision))) throw new AppError('INVALID_ARGUMENT', 'Select a service action and current configuration revision.');
             send(res, 200, await management.runtime.action(input as unknown as Parameters<PanelRuntime['action']>[0])); return;

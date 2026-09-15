@@ -120,7 +120,7 @@ test('init writes a private unified TOML with a local HTTP token and never overw
   const f=await fixture(t,'json');const target=path.join(f.base,'new-device','config.toml');
   const result=await run(process.execPath,[cli,'init','--workspace',f.root,'--config',target]);
   const loaded=await loadConfig(target);assert.equal(loaded.version,2);assert.notEqual(loaded.device?.id,f.raw.device.id);
-  assert.equal(loaded.execution.mode,'disabled');assert.equal(loaded.tunnel?.enabled,false);assert.equal(loaded.http.bearerToken?.length,64);
+  assert.equal(loaded.execution.mode,'trusted-host');assert.equal(loaded.execution.commandPolicy,'all');assert.equal(loaded.workspaces[0].readOnly,false);assert.equal(loaded.tunnel?.enabled,false);assert.equal(loaded.http.bearerToken?.length,64);
   assert.equal(result.stdout.includes(loaded.http.bearerToken!),false);
   const bytes=await readFile(target);
   await assert.rejects(run(process.execPath,[cli,'init','--workspace',f.root,'--config',target]));

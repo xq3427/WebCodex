@@ -59,7 +59,7 @@ export async function setupConfiguration(options: SetupOptions, dependencies: {
   const workspace = path.resolve(options.workspace ?? path.join(defaultRoot, 'workspace'));
   await mkdir(workspace, { recursive: true });
   const root = await realpath(workspace);
-  const raw = defaultUnifiedConfig(root, configPath);
+  const raw = defaultUnifiedConfig(root, configPath, { fullLocalAccess: true });
   raw.http.bearerToken = randomBytes(32).toString('hex');
   // Validate the new workspace and private configuration destination before downloading tools.
   await validateConfig(raw, configPath);
@@ -75,6 +75,6 @@ export async function setupConfiguration(options: SetupOptions, dependencies: {
   await writePrivateConfig(configPath, raw);
   const config = await loadConfig(configPath);
   return { config, report: { ok: true, config: configPath, created: true, preserved: false, workspace: root,
-    dependencies_checked: true, tools: tools.installed, execution_mode: 'disabled', codex_history_enabled: false,
+    dependencies_checked: true, tools: tools.installed, execution_mode: 'trusted-host', command_policy: 'all', workspace_access: 'read-write', codex_history_enabled: false,
     connection: 'Local installation ready. Configure your own Tunnel ID and API key in the dashboard before connecting ChatGPT.' } };
 }

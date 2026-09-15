@@ -6,18 +6,18 @@ Let ChatGPT use MCP to work on authorized local projects: read and edit code, in
 
 WebCodex supplies local tools; ChatGPT interprets the task and calls them. It does not call Codex models, restore quotas, or bypass product limits. It can help continue project work when Codex is temporarily unavailable. This is an independent community project, not an official OpenAI product.
 
-**Version: 0.16.0-preview.13 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
+**Version: 0.16.0-preview.14 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
 
 ## Quick start
 
-**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.13/WebCodex-0.16.0-preview.13-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
+**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.14/WebCodex-0.16.0-preview.14-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
 
 Enter your own Tunnel ID and API key in the dashboard, add workspaces, save and start the connection, then enable it in ChatGPT. See the [complete quick-start guide](docs/quickstart.md) for paths, updates, proxies and installation from a tgz or npm.
 
-With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.13) from a new dedicated directory outside the source checkout; no npm login is needed:
+With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.14) from a new dedicated directory outside the source checkout; no npm login is needed:
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.13 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.14 webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
 Return to the same directory and run the same command to reopen the dashboard. Existing `config.toml` stays unchanged. Use `npx.cmd` if PowerShell blocks `npx.ps1`.
@@ -34,7 +34,7 @@ node dist/src/cli.js setup --workspace .
 
 On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. `setup` installs missing tools for a new configuration and opens the dashboard. Existing configuration stays unchanged. Add `--no-panel` to prepare and exit.
 
-New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. Command execution and Codex history access are disabled by default. `init` can perform the first-run credential wizard: it displays the official Tunnel URL and asks you to open it yourself, create or select a Tunnel, and paste the Tunnel ID; it then displays the API keys URL and asks you to create and paste an API key. The CLI does not read either web page or launch a browser for you. The key is hidden while typing and is written only to the local configuration. Run `connect` afterwards to start MCP. Use `init --no-tunnel` on headless or non-interactive systems and configure credentials later in the local panel.
+New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. The initial workspace is writable and command execution starts as `trusted-host` with `commandPolicy=all`, so native programs do not need individual allowlist entries. Processes still have only the operating-system privileges of the account that starts WebCodex; this does not bypass NTFS permissions or UAC. Codex history access remains disabled by default. `init` can perform the first-run credential wizard: it displays the official Tunnel URL and asks you to open it yourself, create or select a Tunnel, and paste the Tunnel ID; it then displays the API keys URL and asks you to create and paste an API key. The CLI does not read either web page or launch a browser for you. The key is hidden while typing and is written only to the local configuration. Run `connect` afterwards to start MCP. Use `init --no-tunnel` on headless or non-interactive systems and configure credentials later in the local panel.
 
 ```text
 webcodex-mcp init --workspace ./workspace
@@ -111,7 +111,7 @@ There are **65 registered tools: 55 ordinary tools and 10 component-only tools**
 
 - Workspaces have independent names, read-only permissions and availability policies. File changes retain device checks, SHA-256 preconditions, idempotency keys, backups and conditional restoration.
 - Git status/diff, project AGENTS.md instructions, explicitly registered linked worktrees, independent tasks, checkpoints and handoff notes are supported.
-- Command execution is disabled by default. The page can enable local programs with output, waits, cancellation and stdin; legacy configurations may retain an allowlist. `trusted-host` runs with the local owner's permissions and is **not an OS sandbox**.
+- New installations enable writes in the initial workspace and all native commands. Upgrades do not silently broaden an existing configuration. Existing users can select **Full local access** in the dashboard or run `webcodex-mcp access full`, restart, and verify actual create/read/delete access with `webcodex-mcp access check`. `trusted-host` runs with the launching account's privileges; it is **not administrator elevation or an OS sandbox**.
 - Codex history access is disabled by default. When enabled, it reads visible local sessions without model calls, authentication files, hidden reasoning recovery or automatic replay of historical commands.
 - A synthetic text relay succeeded twice in a real ChatGPT connection. This does not establish real PDF ingestion or original-file writeback. The PDF prototype's bundled-font/CMap fix still needs a real PDF retest; there is no scanned-document OCR, image understanding or automatic native attachment ingestion.
 - There is no persistent shell/PTY, autonomous task runner or dedicated Git commit/push tool. Batch changes are not cross-file atomic transactions, and file restoration cannot undo program, network or database side effects.

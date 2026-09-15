@@ -11,7 +11,7 @@ import { App } from './app.js';
 import { createMcpServer } from './server.js';
 import { startHttp } from './http.js';
 import { errorResult, AppError } from './errors.js';
-import { addExecutable, addWorkspace, codexStatus, disableCodexSessions, enableCodexSessions, removeExecutable, removeWorkspace, setExecutionMode, showConfig } from './config-admin.js';
+import { addExecutable, addWorkspace, codexStatus, disableCodexSessions, enableCodexSessions, removeExecutable, removeWorkspace, setExecutionMode, setFullLocalAccess, showConfig } from './config-admin.js';
 import { VERSION } from './version.js';
 import { renameDevice, rebindWorkspace } from './config-admin.js';
 import { setWorkspaceEnabled, workspaceHealthReport } from './config-admin.js';
@@ -30,6 +30,7 @@ import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
 import { createInterface } from 'node:readline/promises';
 import { setupConfiguration, userConfigPath } from './setup.js';
+import { checkLocalAccess } from './local-access.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   setup  [--workspace PATH] [--config PATH] [--proxy URL] [--no-panel]
@@ -57,6 +58,8 @@ const help=`WebCodex MCP ${VERSION} (Node >=22.16)
   execution add --alias NAME --executable ABSOLUTE_PATH [--prefix-arg VALUE ...] [--config PATH]
   execution remove --alias NAME [--config PATH]
   execution inspect [--config PATH]
+  access full [--config PATH]
+  access check [--config PATH]
   execution preset --preset node|npm|python|venv|conda [--alias NAME] [--command PATH] [--entry PATH] [--prefix PATH] [--config PATH]
   codex status [--config PATH]
   codex enable [--home ABSOLUTE_PATH] [--config PATH]
@@ -70,7 +73,7 @@ workspace rebind generates a new workspace UID when the root changes and preserv
 --new-identity also assigns a fresh UID to a replacement directory at the same pathname.
 --worktree records verified Git metadata for an explicitly authorized linked worktree.
 execution preset registers a native command without enabling execution.
-init never overwrites existing configuration; command execution starts disabled.
+New init/setup configurations allow writes in their workspace and all native commands with the current OS account.
 setup installs missing local tools and prepares a private configuration, then opens the dashboard.
 Existing configuration is preserved; --workspace only applies to new setup. --no-panel prepares and exits.
 Config edits require a service restart; the local panel can restart its managed connection.
@@ -96,7 +99,7 @@ async function main() {
   const command=positionals[0];
   if(values.help || !command){process.stdout.write(help);return;}
   const action = positionals[1];
-  const key = ['workspace', 'execution', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
+  const key = ['workspace', 'execution', 'access', 'config', 'codex', 'device', 'tunnel', 'diagnostics', 'actions-probe'].includes(command) ? command+' '+(action??'') : command;
   const commandOptions: Record<string, { count:number; options:string[] }> = {
     setup:{count:1,options:['workspace','proxy','no-panel']},
     init:{count:1,options:['workspace','no-tunnel']},doctor:{count:1,options:[]},serve:{count:1,options:['transport','expected-config-revision']},
@@ -112,6 +115,7 @@ async function main() {
     'workspace add':{count:2,options:['id','root','name','read-only','worktree']},'workspace remove':{count:2,options:['id']},
     'execution set-mode':{count:3,options:[]},'execution add':{count:2,options:['alias','executable','prefix-arg']},'execution remove':{count:2,options:['alias']},
     'execution inspect':{count:2,options:[]},'execution preset':{count:2,options:['preset','alias','command','entry','prefix']},
+    'access full':{count:2,options:[]},'access check':{count:2,options:[]},
     'codex status':{count:2,options:[]},'codex enable':{count:2,options:['home']},'codex disable':{count:2,options:[]},
   };
   const spec = commandOptions[key];
@@ -166,6 +170,8 @@ async function main() {
   if(key==='execution set-mode'){print(await setExecutionMode(configPath,positionals[2]));return;}
   if(key==='execution add'){print(await addExecutable(configPath,{alias:required('alias'),command:required('executable'),args:values['prefix-arg']??[]}));return;}
   if(key==='execution remove'){print(await removeExecutable(configPath,required('alias')));return;}
+  if(key==='access full'){print(await setFullLocalAccess(configPath));return;}
+  if(key==='access check'){print(await checkLocalAccess(await loadConfig(configPath,{workspaceDiagnostics:true})));return;}
   if(key==='execution preset'){
     const preset=values.preset;
     if(preset!=='node'&&preset!=='npm'&&preset!=='python'&&preset!=='venv'&&preset!=='conda')throw new AppError('CLI_ERROR','execution preset requires --preset node|npm|python|venv|conda.');
@@ -179,12 +185,12 @@ async function main() {
     await mkdir(workspacePath,{recursive:true});
     const root=await realpath(workspacePath);
     if(!values.config&&!process.env.WEBCODEX_CONFIG){try{await access(path.resolve('.webcodex/config.json'));throw new AppError('CONFIG_EXISTS','An existing JSON configuration was found. Migrate it explicitly.');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
-    const raw=defaultUnifiedConfig(root,configPath);
+    const raw=defaultUnifiedConfig(root,configPath,{fullLocalAccess:true});
     raw.http.bearerToken=randomBytes(32).toString('hex');
     if (!values['no-tunnel']) await configureTunnelCredentials(raw);
     await validateConfig(raw,configPath);
     await writePrivateConfig(configPath,raw);
-    process.stdout.write(JSON.stringify({ok:true,config:configPath,workspace:root,execution_mode:'disabled'},null,2)+'\n');return;
+    process.stdout.write(JSON.stringify({ok:true,config:configPath,workspace:root,workspace_access:'read-write',execution_mode:'trusted-host',command_policy:'all'},null,2)+'\n');return;
   }
   if(key==='diagnostics show'){const config=await loadConfig(configPath,{workspaceDiagnostics:true});print({ok:true,...readMcpDiagnostics(config)});return;}
   if(key==='actions-probe disable'){print(await disableActionsProbe(configPath));return;}
@@ -252,10 +258,11 @@ async function main() {
     const [git,rgProbe]=await Promise.all([probe(config.gitPath??'git',['--version']),probe(config.rgPath,['--version'])]);
     const rg={...rgProbe,configured_path:config.rgPath,...(!rgProbe.available?{remediation:'Install ripgrep or set rgPath in the configuration to the absolute path of an installed rg.exe (rg on other platforms). The tunnel process must be able to run that executable.'}:{})};
     const workspaces=await Promise.all(config.workspaces.map(async w=>{const health=workspaceHealth(config,w);let writable=false;if(health.available&&!w.readOnly)try{await access(w.root,constants.W_OK);writable=true;}catch{}return{workspace_id:w.id,exists:health.available?true:health.status==='missing'?false:null,enabled:w.enabled!==false,read_only:w.readOnly,writable,...health};}));
+    const local_access = await checkLocalAccess(config);
     let document_widget: {ok:boolean;[key:string]:unknown};
     try { document_widget={ok:true,...inspectDocumentWidgetAsset()}; }
     catch { document_widget={ok:false,code:'DOCUMENT_WIDGET_ASSET_INVALID',remediation:'Run npm run build successfully before restarting this release.'}; }
-    const result={ok:git.available && rg.available && document_widget.ok,version:VERSION,device:config.device,node:process.version,mcp_sdk:'1.30.0',git,rg,workspaces,document_widget,execution_mode:config.execution.mode,executable_aliases:Object.keys(config.execution.allowedExecutables),connection:'Local checks only; ChatGPT negotiation must be verified separately.',config:configPath};
+    const result={ok:git.available && rg.available && document_widget.ok,version:VERSION,device:config.device,node:process.version,mcp_sdk:'1.30.0',git,rg,workspaces,local_access,document_widget,execution_mode:config.execution.mode,execution_command_policy:config.execution.commandPolicy??'allowlist',all_native_programs:config.execution.mode==='trusted-host'&&(config.execution.commandPolicy??'allowlist')==='all',executable_aliases:Object.keys(config.execution.allowedExecutables),connection:'Local checks only; ChatGPT negotiation must be verified separately.',config:configPath};
     process.stdout.write(JSON.stringify(result,null,2)+'\n');if(!result.ok)process.exitCode=1;return;
   }
   const transport=config.version===2?(config.server?.transport??'stdio'):(values.transport??'stdio');

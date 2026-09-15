@@ -1,4 +1,4 @@
-# 本机统一配置（0.16.0-preview.13）
+# 本机统一配置（0.16.0-preview.14）
 
 每台设备维护一份配置，包含 API key、官方隧道、代理、设备身份、项目目录、Codex home、程序路径、本地面板端口和运行限额。新安装默认 `.webcodex/config.toml`；JSON 使用相同 schema v2。公开模板见 [config.example.toml](../examples/config.example.toml)。真实配置及备份包含凭据，应留在本机；CLI 生成和编辑的 v2 文件会限制文件权限。
 
@@ -338,7 +338,7 @@ node dist/src/cli.js workspace remove --id demo
 
 enable/disable、rebind 和其他配置管理命令只修改所选文件，运行中的服务需重启才能采用新设置。enable 会重新校验目录；`onUnavailable: "skip"` 的条目可以保持暂时离线。disable/rebind 可按先前列出的 ID 修复已缺失目录，选中的简写可能展开成对象，其他条目的身份不变。remove 只移除注册，不删除项目文件、历史或备份；至少保留一条配置，可改为禁用。
 
-设备改名保持 ID。换设备应重新 init，填写本机设置。`config export --output config.example.toml` 生成身份和凭据均留空的公开模板，不复制当前配置的路径、密钥、注释或执行授权；默认关闭执行及连接。每台设备仍需 init 生成本机身份，再转入所需设置；export 不是完整配置备份。
+设备改名保持 ID。换设备应重新 init，填写本机设置。`config export --output config.example.toml` 生成身份和凭据均留空的公开模板，不复制当前配置的路径、密钥、注释或执行授权；公开模板默认关闭执行及连接。每台设备仍需 init 生成本机身份，再转入所需设置；export 不是完整配置备份。实际 `init/setup` 创建的新本机配置会开启初始工作区写入及 `trusted-host + all`。
 
 每台设备分别运行一个本地服务，并在 ChatGPT 中区分对应连接。工具结果携带 `source.device_id/device_name/instance_id`，工作区带 UID。schema v2 的写入、执行、取消工具必须提交 `expected_device_id`；先读取 `system_status` 确认目标设备。工具不会跨机器自动转发。
 
@@ -391,7 +391,7 @@ node dist/src/cli.js connect
 node dist/src/cli.js tunnel status
 ```
 
-执行默认关闭。`trusted-host` 使用服务用户权限，并不是 OS 沙箱。`allowlist` 兼容模式只接受已配置程序别名；`all` 还接受本机可找到的原生程序名及绝对路径。`.cmd/.bat` 不直接执行，脚本应通过对应解释器传入分离参数；npm 可保留 Node＋`npm-cli.js` 预设。固定参数支持重复，参数以 `--` 开头时使用 `--prefix-arg=--flag`。命令与解释器按当前设备解析，不写死某台机器的路径。
+新安装使用 `trusted-host + all`；升级不会自动改变已有执行策略。`trusted-host` 使用启动服务的账户权限，并不是管理员提权或 OS 沙箱。`allowlist` 兼容模式只接受已配置程序别名；`all` 还接受本机可找到的原生程序名及绝对路径。`.cmd/.bat` 不直接执行，脚本应通过对应解释器传入分离参数；npm 可保留 Node＋`npm-cli.js` 预设。固定参数支持重复，参数以 `--` 开头时使用 `--prefix-arg=--flag`。命令与解释器按当前设备解析，不写死某台机器的路径。旧配置可运行 `webcodex-mcp access full` 一次开放已启用工作区和全部命令，再用 `webcodex-mcp access check` 验证系统账户实际写权限；修改后需要重启 MCP。
 
 `execution inspect` 只检查配置和保留的预设，不运行解释器、版本命令或项目脚本，也不打开 WebCodex state。返回 `static_check_only: true`；顶层 `ready` 的范围是 `global_defaults`，应同时检查 `workspaces` 的可用性和 ready。`all` 模式不要求存在程序白名单，`program_resolution_at_launch: true` 表示具体程序要在执行时解析；ready 不能证明任意程序已安装或项目依赖可用。输出不显示固定参数和环境变量值。
 

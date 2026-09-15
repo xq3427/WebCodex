@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { defaultUnifiedConfig, loadConfig } from '../src/config.js';
@@ -45,7 +45,7 @@ test('administrative writes require same-origin JSON even with a valid bearer to
   const f = await fixture(t), old = await readFile(f.configPath);
   const current = await (await f.request('/api/config')).json() as any;
   const payload = { expected_revision: current.revision, patch: { device: { name: 'Should not save' } } };
-  for (const route of ['/api/config/save', '/api/config/validate', '/api/runtime']) {
+  for (const route of ['/api/config/save', '/api/config/validate', '/api/runtime', '/api/access-check']) {
     const data = route === '/api/runtime' ? { action: 'restart' } : payload;
     assert.equal((await fetch(f.origin + route, { method: 'POST', headers: { Authorization: 'Bearer ' + f.token, 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).status, 403);
     assert.equal((await f.request(route, data, { Origin: 'https://unrelated.invalid' })).status, 403);
@@ -53,6 +53,19 @@ test('administrative writes require same-origin JSON even with a valid bearer to
     assert.equal((await f.request(route, data, { 'Content-Type': 'text/plain' })).status, 415);
   }
   assert.deepEqual(await readFile(f.configPath), old); assert.deepEqual(f.calls, []);
+});
+
+test('authenticated access check proves real write-read-delete capability without leaving a file behind', async t => {
+  const f = await fixture(t), before = await readFile(f.configPath);
+  const response = await f.request('/api/access-check', {}); assert.equal(response.status, 200, await response.clone().text());
+  const result = await response.json() as any;
+  assert.equal(result.execution.status, 'disabled');
+  assert.equal(result.workspaces[0].status, 'passed');
+  assert.equal(result.workspaces[0].write_probe, 'created-read-verified-deleted');
+  assert.equal(result.ok, true); assert.equal(result.full_access_ready, false, 'The file probe passes, but full access also requires command execution.');
+  assert.deepEqual(await readFile(f.configPath), before);
+  assert.deepEqual((await readdir(f.root)).filter(name => name.startsWith('webcodex-access-check-')), []);
+  assert.equal((await f.request('/api/access-check', { unexpected: true })).status, 400);
 });
 
 test('administrative writes accept localhost Origin when the panel is reached through a loopback alias', async t => {

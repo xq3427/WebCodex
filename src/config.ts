@@ -83,7 +83,7 @@ export function defaultConfig(root: string, configPath: string) {
 }
 
 /** Raw portable v2 document. Nothing is read from environment credential sources or written here. */
-export function defaultUnifiedConfig(root: string, configPath: string, options: { deviceId?: string; deviceName?: string; workspaceUid?: string } = {}) {
+export function defaultUnifiedConfig(root: string, configPath: string, options: { deviceId?: string; deviceName?: string; workspaceUid?: string; fullLocalAccess?: boolean } = {}) {
   const configDir = path.resolve(path.dirname(configPath));
   const relative = path.relative(configDir, path.resolve(root));
   return {
@@ -91,7 +91,7 @@ export function defaultUnifiedConfig(root: string, configPath: string, options: 
     device: { id: options.deviceId ?? randomUUID(), name: options.deviceName ?? hostname() },
     stateDir: '${configDir}/state', toolsDir: '${configDir}/tools', nodePath: 'auto', gitPath: 'auto', rgPath: 'auto',
     workspaces: [{ id: 'default', uid: options.workspaceUid ?? randomUUID(), name: path.basename(root) || 'Workspace', root: path.isAbsolute(relative) ? path.resolve(root) : relative.split(path.sep).join('/') || '.', readOnly: false }],
-    execution: { ...defaultConfig(root, configPath).execution, defaultTimeoutMs: 60000, defaultWaitMs:1000,maxWaitMs:20000,stdinMaxBytes:65536,stdinMaxTotalBytes:1048576,stdinWriteTimeoutMs:5000, allowedExecutables: { node: { command: '${nodePath}', args: [] as string[] } } },
+    execution: { ...defaultConfig(root, configPath).execution, ...(options.fullLocalAccess ? { mode: 'trusted-host' as const, commandPolicy: 'all' as const } : {}), defaultTimeoutMs: 60000, defaultWaitMs:1000,maxWaitMs:20000,stdinMaxBytes:65536,stdinMaxTotalBytes:1048576,stdinWriteTimeoutMs:5000, allowedExecutables: { node: { command: '${nodePath}', args: [] as string[] } } },
     fileBatches:{maxFiles:20,maxTotalBytes:4194304,binaryMaxTotalBytes:134217728},
     fileImports:{maxAttempts:3,downloadTimeoutMs:60000},
     tasks:{maxTasksPerWorkspace:100,maxRevisionsPerTask:100,maxTrackedFiles:20,maxSnapshotBytes:16777216},

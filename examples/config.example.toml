@@ -37,7 +37,7 @@ onUnavailable = "error"
 # Disabled entries do not revoke access granted by a separate enabled parent workspace.
 
 [execution]
-mode = "disabled"
+mode = "trusted-host"
 commandPolicy = "all"
 maxConcurrent = 2
 maxTimeoutMs = 600000

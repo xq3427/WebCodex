@@ -167,7 +167,12 @@ test('current tarball installs with production dependencies and its real CLI che
   assert.equal(status.document_widget.ok, true);
   assert.equal(status.document_widget.version, report.version);
   assert.equal(status.workspaces[0].exists, true);
-  assert.equal(status.execution_mode, 'disabled');
+  assert.equal(status.execution_mode, 'trusted-host');
+  assert.equal(status.execution_command_policy, 'all');
+  const accessStatus = JSON.parse((await run(['access', 'check', '--config', config])).stdout);
+  assert.equal(accessStatus.full_access_ready, true);
+  assert.equal(accessStatus.execution.process_probe, 'passed');
+  assert.equal(accessStatus.workspaces[0].write_probe, 'created-read-verified-deleted');
   for (const file of RELEASE_DOCUMENTS) assert.ok((await lstat(path.join(packageRoot, file))).isFile(), file);
   const installed = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
   const lock = JSON.parse(await readFile(path.join(packageRoot, 'npm-shrinkwrap.json'), 'utf8'));

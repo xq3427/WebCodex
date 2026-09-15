@@ -68,6 +68,7 @@ function harness(options:{fetch?:Fetcher;hash?:string;stored?:string;historyThro
     if(url.pathname==='/api/config')return reply(current);
     if(url.pathname==='/api/runtime'){if(init.method==='POST'){const body=JSON.parse(init.body);runtime={...runtime,state:body.action==='stop'?'stopped':'starting',managed:true};return reply({ok:true,action:body.action,status:runtime});}return reply(runtime);}
     if(url.pathname==='/api/config/validate')return reply({ok:true,valid:true,revision:current.revision,restart_required:true});
+    if(url.pathname==='/api/access-check')return reply({ok:true,full_access_ready:false,execution:{status:'disabled',command_policy:'allowlist'},workspaces:[{workspace_id:'default',name:'研究资料',status:'read-only',error_code:'READ_ONLY'}]});
     if(url.pathname==='/api/config/save'){const body=JSON.parse(init.body);current={...current,values:merge(valueClone(current.values),body.patch),revision:SAVED};if(body.secrets)for(const [key,value]of Object.entries(body.secrets))current.secrets[key]=Boolean(value);return reply({...current,saved_revision:SAVED,readback_verified:true,changed_again:false,restart_required:true});}
     throw new Error('Unexpected route '+url.pathname);
   };
@@ -146,15 +147,23 @@ test('legacy restricted execution remains accurately labelled and can adopt the 
   }
 });
 
-test('new workspaces have explicit IDs and readonly default; nullable inputs submit null',async()=>{
+test('new workspaces have explicit IDs and writable default; nullable inputs submit null',async()=>{
   const h=harness();await h.settle();await h.get('add-workspace').trigger('click');h.field('workspaces.1.root').value='E:\\论文';await h.field('workspaces.1.root').trigger('input');h.field('tunnel.clientSha256').value='';await h.field('tunnel.clientSha256').trigger('input');await h.get('validate').trigger('click');
-  const draft=h.post('/api/config/validate')[0].patch;assert.match(draft.workspaces[1].id,/^ws_[a-f0-9]{32}$/);assert.equal(draft.workspaces[1].readOnly,true);assert.equal(draft.workspaces[0].executionProfile,null);assert.equal(draft.tunnel.clientSha256,null);
+  const draft=h.post('/api/config/validate')[0].patch;assert.match(draft.workspaces[1].id,/^ws_[a-f0-9]{32}$/);assert.equal(draft.workspaces[1].readOnly,false);assert.equal(draft.workspaces[0].executionProfile,null);assert.equal(draft.tunnel.clientSha256,null);
 });
 
 test('permission expansion waits for a concrete confirmation before saving',async()=>{
   const h=harness();await h.settle();const toggle=h.labeled('本机命令执行');toggle.checked=true;await toggle.trigger('change');const pending=h.get('save').trigger('click');await h.settle();assert.equal(h.get('confirm-dialog').open,true);assert.match(h.get('dialog-changes').textContent,/开启本机命令执行/);assert.equal(h.post('/api/config/save').length,0);
   await h.get('dialog-cancel').trigger('click');await pending;assert.equal(h.post('/api/config/save').length,0);
   const accepted=h.get('save').trigger('click');await h.settle();await h.get('dialog-confirm').trigger('click');await accepted;assert.deepEqual(h.post('/api/config/save')[0].patch.execution,{mode:'trusted-host',commandPolicy:'all'});
+});
+
+test('one-click full access opens every enabled workspace and all native commands, then renders real probe errors',async()=>{
+  const h=harness();await h.settle();await h.get('enable-full-access').trigger('click');
+  assert.equal(h.field('workspaces.0.readOnly').checked,false);assert.equal(h.labeled('本机命令执行').checked,true);assert.equal(h.get('full-access-status').textContent,'已配置');
+  const pending=h.get('save').trigger('click');await h.settle();assert.match(h.get('dialog-changes').textContent,/开放.*写入权限/);assert.match(h.get('dialog-changes').textContent,/无需逐个放行程序/);await h.get('dialog-confirm').trigger('click');await pending;
+  const saved=h.post('/api/config/save')[0].patch;assert.equal(saved.workspaces[0].readOnly,false);assert.equal(saved.workspaces[0].root,'D:\\研究资料');assert.deepEqual(saved.execution,{mode:'trusted-host',commandPolicy:'all'});
+  await h.get('access-check').trigger('click');assert.deepEqual(h.post('/api/access-check'),[{}]);assert.match(h.get('access-results').textContent,/配置为只读.*READ_ONLY/);
 });
 
 test('save and restart uses the exact committed revision and does not re-read an unrelated revision',async()=>{

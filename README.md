@@ -6,18 +6,18 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.13，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.14，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.13/WebCodex-0.16.0-preview.13-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.14/WebCodex-0.16.0-preview.14-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
-已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.13)，无需 npm 登录：
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.14)，无需 npm 登录：
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.13 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.14 webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
@@ -36,7 +36,7 @@ node dist/src/cli.js setup --workspace .
 
 PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的工具并打开页面；已有配置原样保留。加 `--no-panel` 仅部署并退出。
 
-首次 `setup` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份，默认关闭命令执行与 Codex 历史读取。也可以使用 `init` 完成交互式初始化：它会显示 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 链接，等待你在浏览器中创建或选择 Tunnel 并粘贴 Tunnel ID；随后显示 [API keys](https://platform.openai.com/api-keys) 链接，等待你创建并粘贴 API key。CLI 不读取网页内容，也不会替你启动浏览器；密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
+首次 `setup` 或 `init` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份；初始工作区可读写，并设置 `execution.mode="trusted-host"`、`commandPolicy="all"`，所以无需逐项放行 `cmd.exe`、PowerShell、SSH、Python 等本机程序。程序权限以启动 WebCodex 的操作系统账户为上限，不会自动获得管理员权限或绕过 NTFS/UAC。Codex 历史读取仍默认关闭。`init` 会显示 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 链接，等待你在浏览器中创建或选择 Tunnel 并粘贴 Tunnel ID；随后显示 [API keys](https://platform.openai.com/api-keys) 链接，等待你创建并粘贴 API key。CLI 不读取网页内容，也不会替你启动浏览器；密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
 
 ```text
 webcodex-mcp init --workspace ./workspace
@@ -55,7 +55,7 @@ webcodex-mcp connect
 node dist/src/cli.js panel
 ```
 
-终端会输出带临时凭据的完整本机链接。页面支持工作区和权限表单、密钥只写更新、配置校验，以及面板管理服务的启动、停止和保存并重启。`panel` 本身不会立即启动 MCP 连接。链接需保密，终端需保持打开。
+终端会输出带临时凭据的完整本机链接。页面支持“一键完全开放”、逐工作区真实落盘自检、工作区和权限表单、密钥只写更新、配置校验，以及面板管理服务的启动、停止和保存并重启。`panel` 本身不会立即启动 MCP 连接。链接需保密，终端需保持打开。
 
 也可显式选择配置位置，后续命令使用同一个 `--config`：
 
@@ -135,7 +135,7 @@ node dist/src/cli.js connect
 
 - 多工作区支持独立名称、只读权限及离线目录策略；文件修改保留设备校验、SHA-256 冲突检查、幂等键、备份和有条件恢复。
 - 支持 Git 状态和差异、项目 AGENTS.md、显式登记的 linked worktree，以及独立任务、检查点和交接笔记。
-- 命令执行默认关闭。通过页面开启后可运行本机程序，并查看输出、等待、取消或输入 stdin；旧配置可保留程序白名单策略。`trusted-host` 拥有本机用户权限，**不是操作系统沙箱**。
+- 新安装默认允许初始工作区写入，并以 `trusted-host + all` 运行本机程序；升级不会静默改变旧配置。旧安装可在页面点击“一键完全开放”，或运行 `webcodex-mcp access full` 后重启；用 `webcodex-mcp access check` 实际验证各工作区的创建、读回和删除。`trusted-host` 拥有启动账户权限，**不是管理员提权或操作系统沙箱**。
 - Codex 历史访问默认关闭；开启后仅只读访问本地可见会话，不调用模型、不读取认证文件、不恢复隐藏推理，也不自动重放历史命令。
 - 合成正文回传曾在真实 ChatGPT 连接中成功两次；这不证明 PDF 正文原型或原文件回存已通过真实验收。PDF 原型的字体/CMap 修复仍待真实 PDF 复验，不支持扫描件 OCR、图像理解或自动原生附件导入。
 - 没有持续 shell/PTY、自动任务执行器或专用 Git 提交/推送工具。批量修改不是跨文件原子事务，文件恢复不能撤销程序、网络或数据库副作用。
