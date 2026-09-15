@@ -55,6 +55,26 @@ test('administrative writes require same-origin JSON even with a valid bearer to
   assert.deepEqual(await readFile(f.configPath), old); assert.deepEqual(f.calls, []);
 });
 
+test('administrative writes accept localhost Origin when the panel is reached through a loopback alias', async t => {
+  const f = await fixture(t);
+  const localhostOrigin = f.origin.replace('127.0.0.1', 'localhost');
+  const before = await readFile(f.configPath);
+  const current = await (await f.request('/api/config')).json() as any;
+  const payload = { expected_revision: current.revision, patch: { device: { name: 'localhost 管理页面' } } };
+  const response = await fetch(f.origin + '/api/config/validate', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + f.token,
+      Origin: localhostOrigin,
+      'Content-Type': 'application/json',
+      'Sec-Fetch-Site': 'same-origin',
+    },
+    body: JSON.stringify(payload),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.deepEqual(await readFile(f.configPath), before, 'Validation remains write-free.');
+});
+
 test('dashboard validates without writing, saves with CAS, retains secrets, and refreshes the local viewing snapshot', async t => {
   const f = await fixture(t), old = await readFile(f.configPath);
   const current = await (await f.request('/api/config')).json() as any;

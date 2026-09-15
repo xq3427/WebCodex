@@ -30,6 +30,25 @@ const same = (a: BigIntStats, b: BigIntStats) => a.ino === b.ino && a.birthtimeN
   && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs && (a.dev === b.dev || process.platform === 'win32' && (a.dev === 0n || b.dev === 0n));
 const safeText = (value: unknown, max = 512) => redactSessionText(String(value ?? '').slice(0, max * 2)).text.slice(0, max);
 
+/**
+ * Parse an HTTP authority that is safe for the loopback-only panel. Browsers
+ * and SSH port forwarding can spell the endpoint as 127.0.0.1 or localhost,
+ * and a forwarded local port can differ from the remote listening port. The
+ * caller separately requires Host and Origin to use the same parsed port.
+ */
+function loopbackAuthorityPort(value: string | undefined): number | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value.includes('://') ? value : 'http://' + value);
+    const hostname = parsed.hostname.toLowerCase();
+    if (parsed.protocol !== 'http:' || !/^\d+$/.test(parsed.port) || parsed.username !== '' || parsed.password !== ''
+      || (parsed.pathname !== '' && parsed.pathname !== '/') || parsed.search !== '' || parsed.hash !== ''
+      || (hostname !== '127.0.0.1' && hostname !== 'localhost')) return null;
+    const port = Number(parsed.port);
+    return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
+  } catch { return null; }
+}
+
 /** Allow the local repair UI to open when an optional history root has disappeared. */
 export async function loadPanelViewConfig(configPath: string) {
   try { return await loadConfig(configPath, { workspaceDiagnostics: true }); }
@@ -229,7 +248,7 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
     // every rejected save into the vague “本机服务拒绝了此操作” message.
     const fail = (status: number, code: string) => {
       const messages: Record<string, string> = {
-        REQUEST_ORIGIN_DENIED: '请求来源与面板地址不一致。请使用启动命令输出的 127.0.0.1 链接打开面板。',
+        REQUEST_ORIGIN_DENIED: '请求来源与面板地址不一致。请使用启动命令输出的完整回环链接（127.0.0.1 或 localhost）打开面板；通过 SSH 转发时请使用本机转发端口。',
         PANEL_AUTH_REQUIRED: '面板凭据缺失或已失效。请从本机启动命令重新打开带凭据的链接。',
         JSON_REQUIRED: '管理请求必须使用 application/json。请刷新页面后重试。',
         REQUEST_TOO_LARGE: '配置请求过大。请减少一次修改的字段数量。',
@@ -238,7 +257,11 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
       };
       send(res, status, { ok: false, error: { code, message: messages[code] ?? '本机拒绝了该请求。' } });
     };
-    if (req.headers.host !== '127.0.0.1:' + port || req.headers.origin !== undefined && req.headers.origin !== origin) { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
+    // Host and Origin may use equivalent loopback spellings (127.0.0.1 or
+    // localhost), especially when a Linux service is reached through SSH
+    // local port forwarding.  Never accept a non-loopback authority.
+    const hostPort = loopbackAuthorityPort(req.headers.host), originPort = req.headers.origin === undefined ? null : loopbackAuthorityPort(req.headers.origin);
+    if (hostPort === null || req.headers.origin !== undefined && (originPort === null || originPort !== hostPort)) { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
     if (req.url === '/' && req.method === 'GET') { send(res, 200, html, true); return; }
     if (req.url === '/files' && req.method === 'GET' && options.management) { send(res, 200, legacyHtml, true); return; }
     if (req.url === '/favicon.ico' && req.method === 'GET') { res.writeHead(204, headers); res.end(); return; }
@@ -259,7 +282,7 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
         if (req.method === 'POST' && ['/api/config/validate', '/api/config/save', '/api/runtime'].includes(url.pathname)) {
           // Administrative writes require an explicit same-origin browser request,
           // in addition to the private per-panel bearer token. No CORS support.
-          if (req.headers.origin !== origin || req.headers['sec-fetch-site'] !== undefined && req.headers['sec-fetch-site'] !== 'same-origin') { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
+          if (originPort === null || originPort !== hostPort || req.headers['sec-fetch-site'] !== undefined && req.headers['sec-fetch-site'] !== 'same-origin') { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
           if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'] ?? '') || req.headers['content-encoding'] !== undefined) { fail(415, 'JSON_REQUIRED'); return; }
           if (Number(req.headers['content-length'] ?? 0) > ADMIN_BODY_LIMIT) { fail(413, 'REQUEST_TOO_LARGE'); return; }
           const input = await body(req, ADMIN_BODY_LIMIT);

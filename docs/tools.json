@@ -2,7 +2,7 @@
   "server": {
     "name": "webcodex-mcp",
     "title": "WebCodex · Example device",
-    "version": "0.16.0-preview.8"
+    "version": "0.16.0-preview.13"
   },
   "tools": [
     {
@@ -5934,6 +5934,137 @@
       }
     },
     {
+      "name": "ssh_readonly_probe",
+      "description": "Run one bounded, fixed-command SSH diagnostic against a locally configured remote. The probe kind is an enum and cannot contain a shell command; no remote files are modified. Configure remotes in .webcodex/config.json (host, port, user, identityFile, strictHostKeyChecking, optional projectRoot). Requires trusted-host execution and the local ssh program; host-key verification remains enabled by default. Use this tool for H20/4090D status checks instead of exec_start.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "remote_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$",
+            "description": "Key under remotes in the local configuration."
+          },
+          "probe": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "roots",
+              "project_candidates",
+              "git_status",
+              "processes",
+              "gpu",
+              "directory_listing"
+            ]
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 120000
+          }
+        },
+        "required": [
+          "remote_id",
+          "probe"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "exec_write_stdin",
       "description": "Send UTF-8 text and/or end=true (EOF) to a running job started with stdin=pipe by this service. Requires current write authorization, trusted-host mode, and the same execution profile/program/environment as the original job. Reuse an operation key only for an identical retry; after unknown delivery do not resend with a new key. Success only means bytes were written to the OS pipe, not processed by the program. Input text is not persisted/audited by this input tool, but the child may echo or store it. Per-call and cumulative byte limits apply.",
       "inputSchema": {
@@ -6995,13 +7126,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.13.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.13.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original file",
         "openai/toolInvocation/invoked": "Original file ready in component"
@@ -7282,13 +7413,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.13.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.8.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.13.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing file upload check",
         "openai/toolInvocation/invoked": "Check upload support in the component"
@@ -7658,13 +7789,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.8.html",
+          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.13.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.8.html",
+        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.13.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing content relay check",
         "openai/toolInvocation/invoked": "Component prepared; content not yet returned"
@@ -8173,13 +8304,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/document-0.16.0-preview.8.html",
+          "resourceUri": "ui://webcodex/document-0.16.0-preview.13.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.8.html",
+        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.13.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original PDF for reading",
         "openai/toolInvocation/invoked": "PDF prepared; page text pending"
@@ -9201,13 +9332,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.8.html",
+          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.13.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.8.html",
+        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.13.html",
         "openai/widgetAccessible": true,
         "openai/fileParams": [
           "file"

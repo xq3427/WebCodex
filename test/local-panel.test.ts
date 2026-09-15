@@ -59,6 +59,50 @@ test('local panel requires a session token and same-origin requests before expos
   assert.equal(await readFile(f.configPath, 'utf8'), JSON.stringify(f.raw));
 });
 
+test('local panel accepts localhost aliases used by Linux browsers and SSH port forwarding', async t => {
+  const f = await fixture(t);
+  const localhostOrigin = f.origin.replace('127.0.0.1', 'localhost');
+
+  // A browser opened with localhost sends both Host and Origin using that
+  // spelling.  The panel must treat it as the same loopback endpoint.
+  const localhost = await new Promise<number>(resolve => {
+    const req = request(f.origin + '/api/status', {
+      headers: { Host: new URL(localhostOrigin).host, Authorization: 'Bearer ' + f.token },
+    }, res => { res.resume(); resolve(res.statusCode!); });
+    req.end();
+  });
+  assert.equal(localhost, 200);
+
+  // With SSH -L, the local listening port may intentionally differ from the
+  // remote panel port.  The forwarded request still carries a loopback Host
+  // and matching Origin, which is sufficient once the bearer token is valid.
+  const forwardedPort = 43210;
+  const forwarded = await new Promise<number>(resolve => {
+    const req = request(f.origin + '/api/status', {
+      headers: { Host: `127.0.0.1:${forwardedPort}`, Origin: `http://localhost:${forwardedPort}`, Authorization: 'Bearer ' + f.token },
+    }, res => { res.resume(); resolve(res.statusCode!); });
+    req.end();
+  });
+  assert.equal(forwarded, 200);
+
+  const mismatchedForward = await new Promise<number>(resolve => {
+    const req = request(f.origin + '/api/status', {
+      headers: { Host: `127.0.0.1:${forwardedPort}`, Origin: `http://localhost:${forwardedPort + 1}`, Authorization: 'Bearer ' + f.token },
+    }, res => { res.resume(); resolve(res.statusCode!); });
+    req.end();
+  });
+  assert.equal(mismatchedForward, 403);
+
+  // SSH forwarding/proxies can preserve one spelling in Host while emitting
+  // the other in Origin. Both loopback spellings are accepted on the same
+  // forwarded port.
+  const mixed = await fetch(f.origin + '/api/status', {
+    headers: { Authorization: 'Bearer ' + f.token, Origin: localhostOrigin },
+  });
+  assert.equal(mixed.status, 200);
+
+});
+
 test('local original-file selection preserves UTF-8 names and raw bytes without upload or document parsing', async t => {
   const f = await fixture(t), bytes = Buffer.from('%PDF-1.4\n原文件 \0\xff\n');
   await writeFile(path.join(f.other, '中文 文件.pdf'), bytes);

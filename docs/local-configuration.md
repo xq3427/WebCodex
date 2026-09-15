@@ -1,4 +1,4 @@
-# 本机统一配置（0.15.0-preview.7）
+# 本机统一配置（0.16.0-preview.13）
 
 每台设备维护一份配置，包含 API key、官方隧道、代理、设备身份、项目目录、Codex home、程序路径、本地面板端口和运行限额。新安装默认 `.webcodex/config.toml`；JSON 使用相同 schema v2。公开模板见 [config.example.toml](../examples/config.example.toml)。真实配置及备份包含凭据，应留在本机；CLI 生成和编辑的 v2 文件会限制文件权限。
 
@@ -67,7 +67,7 @@ node dist/src/cli.js connect --config /absolute/private/config.toml
 
 `connect` 遇到面板端口占用，或面板端口与本次 HTTP 服务端口相同时，会临时选择空闲回环端口，不修改配置或关闭旧页面。只打开配置页面可运行 `node dist/src/cli.js panel`，它不自动启动 daemon；`connect --no-panel` 保留无页面连接，`connect --doctor-only` 只检查、不启动页面，底层 `serve` 也不启动页面。旧版、`--no-panel` 或独立 `serve` 启动的外部服务，仍需在原终端正常停止一次，再从面板启动才能由它管理。
 
-启动 URL 的 fragment 中包含本次面板凭据，需保密；页面清除地址片段后仅使用本机会话 `sessionStorage`，不加载外部资源。凭据随面板进程停止/重启失效，不从配置 API key 派生。保存后可在页面重启自有服务；面板端口变更下次启动面板生效。也可用 `panel --port 8777` 临时换端口，不修改配置。详见[面板指南](local-panel.md)。
+启动 URL 的 fragment 中包含本次面板凭据，需保密；页面清除地址片段后仅使用本机会话 `sessionStorage`，不加载外部资源。凭据随面板进程停止/重启失效，不从配置 API key 派生。保存后可在页面重启自有服务；面板端口变更下次启动面板生效。也可用 `panel --port 8777` 临时换端口，不修改配置。面板只接受 `127.0.0.1` 和 `localhost` 回环主机名，并要求 Host 与 Origin 使用同一端口，仍拒绝其他主机名。Linux 服务器可通过 `ssh -N -L 本机端口:127.0.0.1:面板端口 user@server` 建立本地转发（本机端口可以不同），再把启动链接的端口改成本机转发端口后打开；不要公开绑定面板。详见[面板指南](local-panel.md)。
 
 历史 `actionsProbe` 和 `nativeAttachment` 字段允许保留，以便旧配置继续使用；默认程序将其视为未运行的归档实验，即使旧 enabled 仍是 true 也不会启动或安装任何第三方客户端。`config show` 只显示 inactive 提示，`init` 和 `config export` 不生成这一字段。历史资料见[后续路线](roadmap.md)。
 
