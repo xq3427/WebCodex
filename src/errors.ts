@@ -160,7 +160,7 @@ function recoveryFor(code: string, missing?: { reason: MissingWorkspacePathReaso
     case 'NOT_DIRECTORY':
       return { action: 'verify_directory_path', instruction: 'Check the existing path with fs_list and select a directory where required. Do not replace a file with a directory automatically.', tools: ['fs_list'] };
     case 'ACCESS_DENIED':
-      return { action: 'inspect_existing_access', instruction: 'Check the authorized workspace health and local access state before retrying. Do not change permissions automatically.', tools: ['workspace_health'] };
+      return { action: 'inspect_existing_access', instruction: 'The operating system denied access for the account running WebCodex. Check workspace_health, then run the local `webcodex-mcp access check` or dashboard permission test on that computer. trusted-host/all does not elevate the process or override NTFS, share, mount or administrator permissions. Restart WebCodex from the intended account after fixing the OS access; do not keep retrying the write.', tools: ['workspace_health', 'system_status'] };
     case 'FILE_BUSY':
       return { action: 'inspect_busy_file', instruction: 'Check whether the file is still busy and verify its current state before deciding whether to retry the operation.', tools: ['workspace_health'] };
     default:
@@ -172,13 +172,15 @@ export function errorResult(error: unknown): ToolErrorResult {
   const missing = error && typeof error === 'object' ? missingPaths.get(error) : undefined;
   if (error instanceof AppError) return { ok: false, error: { code: error.code, message: error.message, details: error.details, retryable: false, recovery: recoveryFor(error.code,undefined,error.details) } };
   const code = (error as NodeJS.ErrnoException)?.code;
-  const known: Record<string, string> = { ENOENT: 'NOT_FOUND', EACCES: 'ACCESS_DENIED', EPERM: 'ACCESS_DENIED', EEXIST: 'ALREADY_EXISTS', EBUSY: 'FILE_BUSY' };
+  const known: Record<string, string> = { ENOENT: 'NOT_FOUND', EACCES: 'ACCESS_DENIED', EPERM: 'ACCESS_DENIED', EROFS: 'ACCESS_DENIED', EEXIST: 'ALREADY_EXISTS', EBUSY: 'FILE_BUSY' };
   const publicCode = code && Object.hasOwn(known, code) ? known[code]! : 'INTERNAL_ERROR';
   return { ok: false, error: {
     code: publicCode,
     message: publicCode === 'NOT_FOUND' && missing
       ? missing.reason === 'parent_not_found' ? 'A required parent directory was not found.' : 'The requested file or directory was not found.'
-      : publicCode !== 'INTERNAL_ERROR' ? 'The requested operation could not be completed (' + code + ').' : 'Operation failed. Check local diagnostics.',
+      : publicCode === 'ACCESS_DENIED'
+        ? 'The operating system denied this operation for the account running WebCodex (' + code + '). WebCodex local policy cannot grant NTFS, share, mount or elevated administrator permissions.'
+        : publicCode !== 'INTERNAL_ERROR' ? 'The requested operation could not be completed (' + code + ').' : 'Operation failed. Check local diagnostics.',
     ...(publicCode === 'NOT_FOUND' && missing ? { reason: missing.reason } : {}),
     retryable: false,
     recovery: recoveryFor(publicCode, publicCode === 'NOT_FOUND' ? missing : undefined),

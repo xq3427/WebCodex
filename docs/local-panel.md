@@ -1,4 +1,4 @@
-# WebCodex 本地控制中心（0.16.0-preview.14）
+# WebCodex 本地控制中心（0.16.0-preview.15）
 
 本地控制中心可以编辑配置、管理工作区、切换权限与功能、更新密钥，以及启动、停止和重启由面板管理的 MCP 服务。页面使用本地资源，适配桌面与窄屏，不需要额外云服务或浏览器扩展。原有文件、会话与作业只读浏览保留在“文件与会话”入口。
 
@@ -119,6 +119,6 @@ node dist/src/cli.js codex enable --home /absolute/codex-home --config /absolute
 - **隧道未连通**：检查页面的连接配置和运行状态，必要时按[连接指南](chatgpt-setup.md)检查 `tunnel status`。面板可以重启自己启动的隧道；外部启动器仍需在原终端正常停止一次。
 - **文件哈希超预算**：可继续通过文件选择器或拖拽上传原文件，无需调大 MCP 传输限额。
 - **作业或会话暂无记录**：检查配置、工作区、历史读取开关和记录范围，不把“暂无记录”当作进程已结束。
-- **GPT 只说“安全检查拦截”**：这不是 WebCodex 错误证据。要求它实际调用 `system_status`、`workspace_list` 和对应写入工具，并报告工具名及完整错误码。若没有工具调用，则问题发生在 ChatGPT 工具调度层；若得到 `READ_ONLY` 或 `ACCESS_DENIED`，按页面实际权限检测结果处理。
+- **GPT 只说“安全检查拦截”**：这不是 WebCodex 错误证据。要求它实际调用 `system_status`、`workspace_list` 和对应写入工具，并报告工具名及完整错误码。若没有工具调用，则问题发生在 ChatGPT 工具调度层；不要修改 NTFS 权限或继续扩大 WebCodex 配置。若得到 `READ_ONLY`，修改工作区配置并重启；若得到 `ACCESS_DENIED`，在运行 WebCodex 的那台电脑使用“立即检测实际权限”或 `webcodex-mcp access check`。`trusted-host + all` 不会提升为管理员，也不能绕过 NTFS、共享目录、挂载和只读介质权限。
 
 本版不提供浏览器自动附件注入或跨设备统一调度。Actions / Cloudflare 方案已保留为[后续路线](roadmap.md)，不属于面板的使用步骤。

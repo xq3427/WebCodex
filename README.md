@@ -6,18 +6,18 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.14，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.15，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.14/WebCodex-0.16.0-preview.14-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.15/WebCodex-0.16.0-preview.15-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
-已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.14)，无需 npm 登录：
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.15)，无需 npm 登录：
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.14 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.15 webcodex-mcp setup --workspace ./workspace --config ./config.toml
 ```
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。

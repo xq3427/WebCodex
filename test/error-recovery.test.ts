@@ -161,3 +161,13 @@ test('MCP policy errors give scoped recovery without permissions or wrong-target
   assert.equal((listedJobs.structuredContent as { ok: boolean } | undefined)?.ok, true);
   await assert.rejects(fs.lstat(path.join(f.root, 'new.txt')), { code: 'ENOENT' });
 });
+
+test('read-only filesystem errors are classified as operating-system access denial', () => {
+  const failure = Object.assign(new Error('synthetic read-only filesystem'), { code: 'EROFS' });
+  const result = errorResult(failure);
+  assert.equal(result.error.code, 'ACCESS_DENIED');
+  assert.match(result.error.message, /operating system denied/i);
+  assert.match(result.error.message, /EROFS/);
+  assert.equal(result.error.recovery.action, 'inspect_existing_access');
+  assert.match(result.error.recovery.instruction, /does not elevate/i);
+});
