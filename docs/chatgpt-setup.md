@@ -1,6 +1,6 @@
 # 将 WebCodex 接入 ChatGPT 网页
 
-本指南对应 0.16.0-preview.15、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。`connect` 默认同时启动本机配置控制中心，并输出带临时凭据的完整本机链接，可直接在页面管理本次连接。本地 PDF 文字层使用 document_open/document_read，生成文件自动回存使用 fs_save_file/status，均需分别通过实际宿主验收；不等同于自动上传为原生附件。
+本指南对应 0.16.0-preview.16、配置 schema v2。主线使用 OpenAI 官方 Secure MCP Tunnel 连接本地 MCP。`connect` 默认同时启动本机配置控制中心，并输出带临时凭据的完整本机链接，可直接在页面管理本次连接。本地 PDF 文字层使用 document_open/document_read，生成文件自动回存使用 fs_save_file/status，均需分别通过实际宿主验收；不等同于自动上传为原生附件。
 
 连接路径是本机出站 HTTPS → OpenAI 隧道 → 本机官方客户端 → stdio MCP。不需要自建公网入口；本机、网络、客户端及你配置的代理需要保持运行。
 
@@ -80,7 +80,7 @@ node dist/src/cli.js connect
 
 先发送：
 
-> 使用 WebCodex，实际调用 system_status 和 workspace_list。确认版本为 0.16.0-preview.15，报告目标设备和工作区；读取我指定工作区的一个已知文本文件。不要仅凭应用详情判断工具可调用。
+> 使用 WebCodex，实际调用 system_status 和 workspace_list。确认版本为 0.16.0-preview.16，报告目标设备和工作区；读取我指定工作区的一个已知文本文件。不要仅凭应用详情判断工具可调用。
 
 再在指定的可写临时目录测试创建和读回，检查实际内容与 SHA-256。新文件使用 `expected_sha256: null`；已有文件必须先读哈希，不能直接覆盖。写入还需要核实后的 `expected_device_id` 与稳定操作键。详见[文件工作流](file-workflow.md)。
 

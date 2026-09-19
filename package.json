@@ -1,13 +1,14 @@
 {
   "name": "webcodex-mcp",
-  "version": "0.16.0-preview.15",
+  "version": "0.16.0-preview.16",
   "description": "Workspace-scoped local development tools for ChatGPT over MCP",
   "type": "module",
   "engines": {
     "node": ">=22.16.0"
   },
   "bin": {
-    "webcodex-mcp": "dist/src/cli.js"
+    "webcodex-mcp": "dist/src/cli.js",
+    "webcodex": "dist/src/cli.js"
   },
   "files": [
     "dist",

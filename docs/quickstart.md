@@ -1,6 +1,6 @@
 # 快速开始：安装并连接 ChatGPT
 
-推荐下载 [0.16.0-preview.15 安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.15/WebCodex-0.16.0-preview.15-setup.zip)。它包含已构建的 WebCodex，无需克隆仓库或编译。首次安装需要联网访问 GitHub、npm registry；缺少 Node 时还会访问 nodejs.org。安装器不要求 npm 登录。
+推荐下载 [0.16.0-preview.16 安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.16/WebCodex-0.16.0-preview.16-setup.zip)。它包含已构建的 WebCodex，无需克隆仓库或编译。首次安装需要联网访问 GitHub、npm registry；缺少 Node 时还会访问 nodejs.org。安装器不要求 npm 登录。
 
 ## 1. 安装
 
@@ -33,7 +33,7 @@
 支持 x64 和 arm64。先准备 **Git、curl、tar、unzip 以及 sha256sum 或 shasum**。Linux 需要支持官方 Node 二进制的 glibc 环境；不承诺 Alpine/musl 的便携 Node 安装。macOS 可使用已有 Git 或先安装 Xcode Command Line Tools。安装器不运行 sudo。
 
 ```sh
-curl -fL -o WebCodex-setup.zip https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.15/WebCodex-0.16.0-preview.15-setup.zip
+curl -fL -o WebCodex-setup.zip https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.16/WebCodex-0.16.0-preview.16-setup.zip
 unzip WebCodex-setup.zip -d WebCodex-setup
 cd WebCodex-setup
 sh install.sh
@@ -54,13 +54,13 @@ sh install.sh --install-dir "$HOME/Applications/WebCodex" --workspace "$HOME/Pro
 如果希望直接在命令行完成首次 Tunnel 配置，也可以运行：
 
 ```sh
-webcodex-mcp init --workspace ./workspace
+webcodex init --workspace ./workspace
 ```
 
 命令会显示官方 Tunnel 页面链接。请自行在浏览器打开链接，创建或选择 Tunnel 后回到终端粘贴 Tunnel ID；随后 CLI 会显示 API keys 页面链接，请自行打开、创建 API key，再回到终端粘贴 API key。CLI 不读取网页内容，也不会自动启动浏览器。输入时 key 不回显，保存后运行：
 
 ```sh
-webcodex-mcp connect
+webcodex connect
 ```
 
 无桌面或自动化环境可使用 `init --no-tunnel`，稍后在本机管理页面填写凭据。
@@ -74,9 +74,9 @@ webcodex-mcp connect
 命令行也可完成同一操作：
 
 ```sh
-webcodex-mcp access full
-webcodex-mcp access check
-webcodex-mcp connect
+webcodex access full
+webcodex access check
+webcodex connect
 ```
 
 `access check` 会在每个已配置的可写工作区创建随机临时文件、读回核对并删除。`full_access_ready=true` 才表示已保存配置为 `trusted-host + all` 且所有可写工作区均通过实际落盘检测。若返回 `READ_ONLY`，请开放该工作区并重启；若返回 `EACCES`、`EPERM` 或 `EROFS`，是启动 WebCodex 的系统账户、磁盘或 NTFS 权限拒绝，需把目录授权给该账户或用具备所需权限的终端启动。WebCodex 不会自动触发 UAC。
@@ -93,27 +93,27 @@ webcodex-mcp connect
 
 在已启用 WebCodex 的 ChatGPT 对话发送：
 
-> 使用 WebCodex，先调用 system_status 和 workspace_list，确认版本为 0.16.0-preview.15、设备与工作区正确。读取 README.md（如果存在）。在我指定的可写工作区新建一个不存在的 webcodex-smoke.txt，内容为“连接测试”，再实际读回。不要覆盖已有文件；失败时报告实际工具错误。
+> 使用 WebCodex，先调用 system_status 和 workspace_list，确认版本为 0.16.0-preview.16、设备与工作区正确。读取 README.md（如果存在）。在我指定的可写工作区新建一个不存在的 webcodex-smoke.txt，内容为“连接测试”，再实际读回。不要覆盖已有文件；失败时报告实际工具错误。
 
 安装成功、面板打开、隧道 connected 和文件实际读写是不同检查。PDF 正文与 ChatGPT 原文件自动回存仍有[宿主验收边界](current-acceptance.md)，安装包不改变这些限制。
 
 ## 已有 Node：使用 tgz 或 npm
 
-已有 Node.js ≥22.16 和 npm，可直接使用 [npm 上的 0.16.0-preview.15](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.15)，无需 npm 账号或登录。先在源码仓库及其子目录之外新建专用目录，再运行；例如在用户主目录创建：
+已有 Node.js ≥22.16 和 npm，可直接使用 [npm 上的 0.16.0-preview.16](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.16)，无需 npm 账号或登录。先在源码仓库及其子目录之外新建专用目录，再运行；例如在用户主目录创建：
 
 ```sh
 mkdir ~/WebCodex-local
 cd ~/WebCodex-local
-npx --yes --package webcodex-mcp@0.16.0-preview.15 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.16 webcodex setup --workspace ./workspace --config ./config.toml
 ```
 
 命令会安装缺少的工具、在当前目录创建 `config.toml` 和 `workspace`，然后打开管理页面。按上文填写账户和工作区设置。以后回到同一目录运行同一条 `npx` 命令即可重新打开页面，已有配置原样保留；不要删除该目录里的配置、工具、状态和工作区。
 
-也可以下载 Release 中的 `webcodex-mcp-0.16.0-preview.15.tgz`，在专用目录运行：
+也可以下载 Release 中的 `webcodex-mcp-0.16.0-preview.16.tgz`，在专用目录运行：
 
 ```sh
-npm install ./webcodex-mcp-0.16.0-preview.15.tgz --omit=dev --ignore-scripts
-npx --no-install webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npm install ./webcodex-mcp-0.16.0-preview.16.tgz --omit=dev --ignore-scripts
+npx --no-install webcodex setup --workspace ./workspace --config ./config.toml
 ```
 
 Windows PowerShell 若拦截 `npm.ps1` 或 `npx.ps1`，使用 `npm.cmd` / `npx.cmd`。

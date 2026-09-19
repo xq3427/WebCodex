@@ -188,6 +188,11 @@ test('runtime inspection reads all active job counts without modifying SQLite, l
     const directDaemon = await inspectPanelRuntime(config);
     assert.equal(directDaemon.external, true);
     assert.equal(await readFile(daemonLock, 'utf8'), 'synthetic-independent-daemon-lock');
+    const abandonedLease = new DatabaseSync(path.join(config.stateDir, 'owner.sqlite'));
+    abandonedLease.close();
+    const abandonedDaemon = await inspectPanelRuntime(config);
+    assert.equal(abandonedDaemon.external, false);
+    assert.equal(await readFile(daemonLock, 'utf8'), 'synthetic-independent-daemon-lock');
     await writeFile(database, 'incompatible database');
     assert.equal((await inspectPanelRuntime(config)).activeJobs, null);
   } finally { assert.match(path.basename(base), /^webcodex-runtime-readonly-/); await rm(base, { recursive: true, force: true }); }
@@ -207,6 +212,20 @@ async function nativeFixture() {
   await writeFile(path.join(base, 'doctor'), program); await writeFile(path.join(base, 'run'), program);
   return { base, config, clean: async () => { assert.match(path.basename(base), /^webcodex-runtime-child-/); await rm(base, { recursive: true, force: true }); } };
 }
+
+test('panel inspection releases a verified abandoned tunnel lock to the tunnel recovery path', async () => {
+  const f = await nativeFixture();
+  try {
+    const control = path.join(f.config.stateDir, 'tunnel');
+    await mkdir(control, { recursive: true });
+    const lock = path.join(control, 'launcher.lock');
+    const contents = JSON.stringify({ pid: 2147483647, owner: 'synthetic-abandoned', started_at: new Date().toISOString() });
+    await writeFile(lock, contents);
+    const observation = await inspectPanelRuntime(f.config);
+    assert.equal(observation.external, false);
+    assert.equal(await readFile(lock, 'utf8'), contents);
+  } finally { await f.clean(); }
+});
 
 async function waitForFileText(file: string, text: string) {
   const deadline = Date.now() + 10000;

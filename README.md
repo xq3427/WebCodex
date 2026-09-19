@@ -6,23 +6,23 @@
 
 WebCodex 提供本地工具，由 ChatGPT 理解任务并调用工具。它不调用 Codex 模型，不恢复或绕过产品额度；适合在 Codex 暂时不可用时继续处理项目。本项目由社区独立开发，与 OpenAI 无隶属关系。
 
-**当前版本：0.16.0-preview.15，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
+**当前版本：0.16.0-preview.16，预览版。** 本机已有文件使用 `fs_copy` 直接复制；ChatGPT 生成的原文件优先使用 `fs_save_file` 自动回存。后者接收真实宿主文件 ID 或官方文件对象，在本机下载并核对原件大小和 SHA-256 后写入，文件字节不经过模型 Base64 中转。**自动回存的本机与合成组件测试已完成，真实 ChatGPT 文件授权、下载和保存全链路仍待验收。**
 
 ## 快速开始
 
-**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.15/WebCodex-0.16.0-preview.15-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
+**推荐：[下载一键安装包](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.16/WebCodex-0.16.0-preview.16-setup.zip)**，完整解压后，Windows 双击 `install.cmd`，Linux/macOS 运行 `sh install.sh`。它会准备 Node、本机工具和私有配置，并打开管理页面；无需编译、npm 登录或管理员权限。Linux/macOS 需先有 Git 和基础下载/解压工具。
 
 在页面填入自己的 Tunnel ID、API key，添加工作区，保存并启动服务，再在 ChatGPT 中连接。**[完整快速开始教程](docs/quickstart.md)** 包含各平台安装、已有 Node 的 tgz/npm 用法、更新和故障处理。
 
-已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.15)，无需 npm 登录：
+已有 Node.js ≥22.16 和 npm，也可在源码仓库以外新建专用目录，直接运行 [npm 发布版](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.16)，无需 npm 登录：
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.15 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.16 webcodex setup --workspace ./workspace --config ./config.toml
 ```
 
 以后回到同一目录运行同一命令即可重新打开页面，已有 `config.toml` 原样保留。PowerShell 若拦截 `npx.ps1`，使用 `npx.cmd`。
 
-如果直接运行已安装的 `webcodex-mcp connect` 时没有找到配置，CLI 会在系统用户配置目录自动创建一次初始配置并打开控制页面：Linux 为 `~/.config/webcodex/config.toml`，macOS 为 `~/Library/Application Support/WebCodex/config.toml`，Windows 为 `%LOCALAPPDATA%\\WebCodex\\config.toml`。该行为只在未提供 `--config` 且确实不存在配置时触发，不会覆盖已有文件；也可以显式运行 `webcodex-mcp setup --config <路径>` 自定义位置。
+安装后可使用简短命令 `webcodex`；原命令 `webcodex-mcp` 完全兼容。如果直接运行 `webcodex connect` 时没有找到配置，CLI 会在系统用户配置目录自动创建一次初始配置并打开控制页面：Linux 为 `~/.config/webcodex/config.toml`，macOS 为 `~/Library/Application Support/WebCodex/config.toml`，Windows 为 `%LOCALAPPDATA%\\WebCodex\\config.toml`。该行为只在未提供 `--config` 且确实不存在配置时触发，不会覆盖已有文件；也可以显式运行 `webcodex setup --config <路径>` 自定义位置。
 
 开发者也可从源码安装，需要 Node.js ≥22.16：
 
@@ -39,8 +39,8 @@ PowerShell 若拦截 `npm.ps1`，使用 `npm.cmd`。`setup` 会安装缺少的�
 首次 `setup` 或 `init` 创建私有的 `.webcodex/config.toml`，生成本机设备和工作区身份；初始工作区可读写，并设置 `execution.mode="trusted-host"`、`commandPolicy="all"`，所以无需逐项放行 `cmd.exe`、PowerShell、SSH、Python 等本机程序。程序权限以启动 WebCodex 的操作系统账户为上限，不会自动获得管理员权限或绕过 NTFS/UAC。Codex 历史读取仍默认关闭。`init` 会显示 [Platform Tunnels](https://platform.openai.com/settings/organization/tunnels) 链接，等待你在浏览器中创建或选择 Tunnel 并粘贴 Tunnel ID；随后显示 [API keys](https://platform.openai.com/api-keys) 链接，等待你创建并粘贴 API key。CLI 不读取网页内容，也不会替你启动浏览器；密钥在终端输入时不回显，只写入本机配置，不会打印或提交。完成后使用 `connect` 启动 MCP。非交互终端可加 `--no-tunnel` 跳过凭据向导，再通过本地 panel 配置。
 
 ```text
-webcodex-mcp init --workspace ./workspace
-webcodex-mcp connect
+webcodex init --workspace ./workspace
+webcodex connect
 ```
 
 ## 统一配置与本地控制中心

@@ -175,6 +175,14 @@ test('current tarball installs with production dependencies and its real CLI che
   assert.equal(accessStatus.workspaces[0].write_probe, 'created-read-verified-deleted');
   for (const file of RELEASE_DOCUMENTS) assert.ok((await lstat(path.join(packageRoot, file))).isFile(), file);
   const installed = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
+  assert.deepEqual(installed.bin, {
+    webcodex: 'dist/src/cli.js',
+    'webcodex-mcp': 'dist/src/cli.js'
+  });
+  for (const command of ['webcodex', 'webcodex-mcp']) {
+    const shim = path.join(prefix, 'node_modules', '.bin', command + (process.platform === 'win32' ? '.cmd' : ''));
+    assert.ok((await lstat(shim)).isFile() || (await lstat(shim)).isSymbolicLink(), command);
+  }
   const lock = JSON.parse(await readFile(path.join(packageRoot, 'npm-shrinkwrap.json'), 'utf8'));
   const installedRequire = createRequire(path.join(packageRoot, 'package.json'));
   for (const [name, version] of Object.entries(installed.dependencies)) {

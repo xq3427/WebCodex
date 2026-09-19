@@ -6,18 +6,18 @@ Let ChatGPT use MCP to work on authorized local projects: read and edit code, in
 
 WebCodex supplies local tools; ChatGPT interprets the task and calls them. It does not call Codex models, restore quotas, or bypass product limits. It can help continue project work when Codex is temporarily unavailable. This is an independent community project, not an official OpenAI product.
 
-**Version: 0.16.0-preview.15 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
+**Version: 0.16.0-preview.16 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
 
 ## Quick start
 
-**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.15/WebCodex-0.16.0-preview.15-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
+**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.16/WebCodex-0.16.0-preview.16-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
 
 Enter your own Tunnel ID and API key in the dashboard, add workspaces, save and start the connection, then enable it in ChatGPT. See the [complete quick-start guide](docs/quickstart.md) for paths, updates, proxies and installation from a tgz or npm.
 
-With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.15) from a new dedicated directory outside the source checkout; no npm login is needed:
+With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.16) from a new dedicated directory outside the source checkout; no npm login is needed:
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.15 webcodex-mcp setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.16 webcodex setup --workspace ./workspace --config ./config.toml
 ```
 
 Return to the same directory and run the same command to reopen the dashboard. Existing `config.toml` stays unchanged. Use `npx.cmd` if PowerShell blocks `npx.ps1`.
@@ -37,8 +37,8 @@ On PowerShell, use `npm.cmd` if script execution policy blocks `npm.ps1`. `setup
 New setup creates a private `.webcodex/config.toml` with fresh device/workspace identities. The initial workspace is writable and command execution starts as `trusted-host` with `commandPolicy=all`, so native programs do not need individual allowlist entries. Processes still have only the operating-system privileges of the account that starts WebCodex; this does not bypass NTFS permissions or UAC. Codex history access remains disabled by default. `init` can perform the first-run credential wizard: it displays the official Tunnel URL and asks you to open it yourself, create or select a Tunnel, and paste the Tunnel ID; it then displays the API keys URL and asks you to create and paste an API key. The CLI does not read either web page or launch a browser for you. The key is hidden while typing and is written only to the local configuration. Run `connect` afterwards to start MCP. Use `init --no-tunnel` on headless or non-interactive systems and configure credentials later in the local panel.
 
 ```text
-webcodex-mcp init --workspace ./workspace
-webcodex-mcp connect
+webcodex init --workspace ./workspace
+webcodex connect
 ```
 
 ## Unified configuration and local control center

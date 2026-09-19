@@ -161,18 +161,41 @@ export async function inspectPanelRuntime(config: AppConfig): Promise<PanelRunti
   let external = false;
   try {
     await noLinkedParents(path.join(config.stateDir, 'tunnel'));
-    // Even an abandoned or unreadable lock needs local inspection; never remove or take it over here.
     await lstat(path.join(config.stateDir, 'tunnel', 'launcher.lock'));
-    external = true;
+    // The tunnel layer already has a bounded, identity-checked abandoned-lock
+    // recovery path. Let a managed start reach it only when the recorded PID is
+    // definitely gone; malformed, inaccessible or live launchers stay external.
+    external = (await readTunnelStatus(config, { timeoutMs: 1500 })).state !== 'not_running';
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw fail('PANEL_STATE_UNAVAILABLE');
   }
   try {
-    await lstat(path.join(config.stateDir, 'daemon.lock'));
-    // A directly launched HTTP or stdio daemon also owns the state; no PID from this record is ever signalled.
-    external = true;
+    const daemonLock = await lstat(path.join(config.stateDir, 'daemon.lock'), { bigint: true });
+    if (!daemonLock.isFile() || daemonLock.isSymbolicLink() || daemonLock.nlink !== 1n) throw fail('PANEL_STATE_UNAVAILABLE');
+    const leasePath = path.join(config.stateDir, 'owner.sqlite');
+    const leaseInfo = await lstat(leasePath, { bigint: true });
+    if (!leaseInfo.isFile() || leaseInfo.isSymbolicLink() || leaseInfo.nlink !== 1n) throw fail('PANEL_STATE_UNAVAILABLE');
+    let lease: DatabaseSync | undefined;
+    try {
+      lease = new DatabaseSync(leasePath);
+      lease.exec('PRAGMA busy_timeout=0; BEGIN EXCLUSIVE; ROLLBACK;');
+      // The diagnostic JSON survived a crash, but SQLite confirms no daemon
+      // owns the state. StateStore will replace the record when startup begins.
+    } catch {
+      external = true;
+    } finally {
+      try { lease?.close(); } catch {}
+    }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw fail('PANEL_STATE_UNAVAILABLE');
+    if (error instanceof AppError) throw error;
+    try {
+      await lstat(path.join(config.stateDir, 'daemon.lock'));
+      // A diagnostic record without a verifiable SQLite lease is never safe to
+      // recover automatically.
+      external = true;
+    } catch (lockError) {
+      if ((lockError as NodeJS.ErrnoException).code !== 'ENOENT') throw fail('PANEL_STATE_UNAVAILABLE');
+    }
   }
   let activeJobs: number | null = null;
   const database = path.join(config.stateDir, 'webcodex.sqlite');
