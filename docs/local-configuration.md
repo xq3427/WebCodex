@@ -1,4 +1,4 @@
-# 本机统一配置（0.16.0-preview.16）
+# 本机统一配置（0.16.0-preview.17）
 
 每台设备维护一份配置，包含 API key、官方隧道、代理、设备身份、项目目录、Codex home、程序路径、本地面板端口和运行限额。新安装默认 `.webcodex/config.toml`；JSON 使用相同 schema v2。公开模板见 [config.example.toml](../examples/config.example.toml)。真实配置及备份包含凭据，应留在本机；CLI 生成和编辑的 v2 文件会限制文件权限。
 

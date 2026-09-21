@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -111,12 +111,46 @@ test('setup installs official portable tools with complete bytes and compatible 
   assert.equal(result.nodePath, process.execPath); assert.equal(result.installed.length, 4);
   for (const record of result.installed.slice(1)) { assert.equal(record.source, 'official_release'); assert.match(record.executableSha256!, /^[a-f0-9]{64}$/); }
   const record = JSON.parse(await readFile(path.join(f.toolsDir, 'tunnel-client', 'install.json'), 'utf8'));
-  assert.equal(record.executable, result.tunnelPath); assert.equal(record.version, 'v0.0.14'); assert.equal(record.architecture, 'amd64');
+  const tunnelRoot = path.join(f.toolsDir, 'tunnel-client');
+  const recordedExecutable = path.resolve(tunnelRoot, record.executable.split('/').join(path.sep));
+  const recordedArchive = path.resolve(tunnelRoot, record.archive.split('/').join(path.sep));
+  assert.equal(path.isAbsolute(record.executable), false); assert.equal(recordedExecutable, result.tunnelPath);
+  assert.equal(record.version, 'v0.0.14'); assert.equal(record.architecture, 'amd64');
   assert.equal(record.releaseUrl, 'https://github.com/openai/tunnel-client/releases/tag/v0.0.14');
   assert.equal(record.executableSha256, hash(await readFile(result.tunnelPath)));
-  assert.equal(record.archiveSha256, hash(await readFile(record.archive)));
+  assert.equal(record.archiveSha256, hash(await readFile(recordedArchive)));
   assert.ok(record.files.some((file: { path: string }) => file.path.endsWith('tunnel-client.exe')));
+  for (const directory of ['tunnel-client', 'git', 'ripgrep']) {
+    const installed = JSON.parse(await readFile(path.join(f.toolsDir, directory, 'install.json'), 'utf8'));
+    assert.equal(path.isAbsolute(installed.executable), false, directory + ' executable');
+    assert.equal(path.isAbsolute(installed.archive), false, directory + ' archive');
+  }
   assert.deepEqual((await readdir(f.toolsDir)).sort(), ['git', 'ripgrep', 'tunnel-client']);
+});
+test('verified tool installations remain reusable after moving the complete tools directory', async t => {
+  const f = await fixture(t, { missingGit: true, missingRg: true });
+  const installed = await installSetupTools(f.options, f.deps), calls = f.calls.length;
+  const moved = path.join(f.root, 'moved tools');
+  await rename(f.toolsDir, moved);
+  const reused = await installSetupTools({ toolsDir: moved }, f.deps);
+  assert.equal(f.calls.length, calls);
+  for (const [actual, original] of [[reused.tunnelPath, installed.tunnelPath], [reused.gitPath, installed.gitPath], [reused.rgPath, installed.rgPath]]) {
+    assert.equal(actual, original.replace(f.toolsDir, moved));
+    await readFile(actual!);
+  }
+});
+test('legacy absolute installation records are accepted only inside their current verified root', async t => {
+  const f = await fixture(t, { missingGit: true, missingRg: true });
+  await installSetupTools(f.options, f.deps); const calls = f.calls.length;
+  const root = path.join(f.toolsDir, 'tunnel-client'), recordPath = path.join(root, 'install.json');
+  const record = JSON.parse(await readFile(recordPath, 'utf8'));
+  record.executable = path.resolve(root, record.executable.split('/').join(path.sep));
+  record.archive = path.resolve(root, record.archive.split('/').join(path.sep));
+  await writeFile(recordPath, JSON.stringify(record));
+  await installSetupTools(f.options, f.deps); assert.equal(f.calls.length, calls);
+  record.executable = path.join(f.root, 'outside-tunnel-client');
+  await writeFile(recordPath, JSON.stringify(record));
+  await assert.rejects(installSetupTools(f.options, f.deps), { code: 'SETUP_INSTALL_CONFLICT' });
 });
 test('setup reuses verified dependencies without downloads and detects modified supporting files', async t => {
   const f = await fixture(t, { missingGit: true, missingRg: true });

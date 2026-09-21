@@ -6,19 +6,21 @@ Let ChatGPT use MCP to work on authorized local projects: read and edit code, in
 
 WebCodex supplies local tools; ChatGPT interprets the task and calls them. It does not call Codex models, restore quotas, or bypass product limits. It can help continue project work when Codex is temporarily unavailable. This is an independent community project, not an official OpenAI product.
 
-**Version: 0.16.0-preview.16 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
+**Version: 0.16.0-preview.17 — preview.** Copy existing local files with `fs_copy`; use `fs_save_file` for original files generated in ChatGPT. The save route accepts an actual host file ID or official file object, downloads the original locally, and checks its expected size and SHA-256 before writing. File bytes do not pass through model-transcribed Base64. **Local and synthetic component tests have passed; real ChatGPT authorization, download and save acceptance remains pending.**
 
 ## Quick start
 
-**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.16/WebCodex-0.16.0-preview.16-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
+**Recommended: [download the setup ZIP](https://github.com/xq3427/WebCodex/releases/download/v0.16.0-preview.17/WebCodex-0.16.0-preview.17-setup.zip)**. Extract it fully, then double-click `install.cmd` on Windows or run `sh install.sh` on Linux/macOS. It prepares Node, local tools and private configuration, then opens the dashboard. No compilation, npm login or administrator access is required. Linux/macOS require Git and standard download/archive utilities.
 
 Enter your own Tunnel ID and API key in the dashboard, add workspaces, save and start the connection, then enable it in ChatGPT. See the [complete quick-start guide](docs/quickstart.md) for paths, updates, proxies and installation from a tgz or npm.
 
-With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.16) from a new dedicated directory outside the source checkout; no npm login is needed:
+With Node.js ≥22.16 and npm already installed, run the [npm release](https://www.npmjs.com/package/webcodex-mcp/v/0.16.0-preview.17) from a new dedicated directory outside the source checkout; no npm login is needed:
 
 ```text
-npx --yes --package webcodex-mcp@0.16.0-preview.16 webcodex setup --workspace ./workspace --config ./config.toml
+npx --yes --package webcodex-mcp@0.16.0-preview.17 webcodex setup --workspace ./workspace --config ./config.toml
 ```
+
+Run `npm install -g webcodex-mcp@0.16.0-preview.17` when `webcodex init` and `webcodex connect` must be available directly in every directory. A plain `npm install webcodex-mcp` is project-local; invoke it with `npx webcodex` instead. See the quick start for PATH troubleshooting.
 
 Return to the same directory and run the same command to reopen the dashboard. Existing `config.toml` stays unchanged. Use `npx.cmd` if PowerShell blocks `npx.ps1`.
 

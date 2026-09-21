@@ -52,6 +52,12 @@ const invalidArchive = () => error('SETUP_ARCHIVE_INVALID', 'The official archiv
 const conflict = () => error('SETUP_INSTALL_CONFLICT', 'The tool destination contains an unknown or modified installation. Preserve it and choose an empty toolsDir or restore its verified installation; setup does not overwrite it.');
 const sha = (data: Buffer) => createHash('sha256').update(data).digest('hex');
 const within = (root: string, file: string) => { const rel = path.relative(root, file); return rel !== '' && !path.isAbsolute(rel) && rel !== '..' && !rel.startsWith('..' + path.sep); };
+const recordedPath = (root: string, value: unknown) => {
+  if (typeof value !== 'string' || !value || [...value].some(character => { const code = character.charCodeAt(0); return code < 0x20 || code === 0x7f; })) throw conflict();
+  const resolved = path.isAbsolute(value) ? path.normalize(value) : path.resolve(root, value.split('/').join(path.sep));
+  if (!within(root, resolved)) throw conflict();
+  return resolved;
+};
 
 function officialUrl(input: string): URL {
   let url: URL;
@@ -321,8 +327,9 @@ async function existingInstall(root: string, tool: Tool, platform: Platform, arc
     const record = JSON.parse((await plainBytes(path.join(root, 'install.json'), META_LIMIT)).toString('utf8').replace(/^\uFEFF/, '')) as Installation;
     const versionPattern = tool === 'tunnel' ? /^v\d+\.\d+\.\d+$/ : tool === 'git' ? /^v\d+\.\d+\.\d+\.windows\.\d+$/ : /^\d+\.\d+\.\d+$/;
     if (!versionPattern.test(record.version) || record.releaseUrl !== `https://github.com/${repositories[tool]}/releases/tag/${record.version}` || record.platform !== undefined && record.platform !== platform && !(platform === 'win32' && record.platform === 'windows') || record.architecture !== undefined && record.architecture !== arch && record.architecture !== (arch === 'x64' ? 'amd64' : 'arm64')) throw conflict();
-    if (!within(root, record.executable) || !within(root, record.archive) || !/^[a-f0-9]{64}$/.test(record.executableSha256) || !/^[a-f0-9]{64}$/.test(record.archiveSha256)) throw conflict();
-    if (sha(await plainBytes(record.executable, FILE_LIMIT)) !== record.executableSha256 || sha(await plainBytes(record.archive, ARCHIVE_LIMIT)) !== record.archiveSha256) throw conflict();
+    const executable = recordedPath(root, record.executable), archive = recordedPath(root, record.archive);
+    if (!/^[a-f0-9]{64}$/.test(record.executableSha256) || !/^[a-f0-9]{64}$/.test(record.archiveSha256)) throw conflict();
+    if (sha(await plainBytes(executable, FILE_LIMIT)) !== record.executableSha256 || sha(await plainBytes(archive, ARCHIVE_LIMIT)) !== record.archiveSha256) throw conflict();
     if (record.files) {
       if (!Array.isArray(record.files) || record.files.length > MAX_MEMBERS) throw conflict();
       for (const entry of record.files) {
@@ -330,7 +337,7 @@ async function existingInstall(root: string, tool: Tool, platform: Platform, arc
         if (!within(root, file) || !/^[a-f0-9]{64}$/.test(entry.sha256) || sha(await plainBytes(file, FILE_LIMIT)) !== entry.sha256) throw conflict();
       }
     } else if (tool !== 'tunnel') throw conflict();
-    return { tool, executable: record.executable, version: record.version, source: 'official_release', verification: record.verification, executableSha256: record.executableSha256, archiveSha256: record.archiveSha256 };
+    return { tool, executable, version: record.version, source: 'official_release', verification: record.verification, executableSha256: record.executableSha256, archiveSha256: record.archiveSha256 };
   } catch { throw conflict(); }
 }
 
@@ -440,10 +447,11 @@ async function install(tool: Tool, toolsDir: string, platform: Platform, arch: A
     if (checksumBytes) await writeFile(path.join(versionDir, 'checksums.txt'), checksumBytes, { flag: 'wx', mode: 0o600 });
     await writeFile(path.join(versionDir, 'release.json'), JSON.stringify(release, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
     const relativeBinary = path.relative(stage, path.join(bin, binary[0].name));
+    const relativeArchive = path.relative(stage, path.join(versionDir, filename));
     const executable = path.join(root, relativeBinary), record: Installation = {
       version: release.tag_name, architecture: arch === 'x64' ? 'amd64' : 'arm64', platform, releaseUrl: release.html_url,
-      checkedAt: new Date().toISOString(), executable, executableSha256: sha(binary[0].data!),
-      archive: path.join(root, path.relative(stage, path.join(versionDir, filename))), archiveSha256: checksums.get(filename)!,
+      checkedAt: new Date().toISOString(), executable: relativeBinary.split(path.sep).join('/'), executableSha256: sha(binary[0].data!),
+      archive: relativeArchive.split(path.sep).join('/'), archiveSha256: checksums.get(filename)!,
       verification: 'SHA-256 verified against the same official GitHub release metadata/checksums; provenance signature not verified.', files,
     };
     await writeFile(path.join(stage, 'install.json'), JSON.stringify(record, null, 2) + '\n', { flag: 'wx', mode: 0o600 });

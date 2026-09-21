@@ -43,7 +43,7 @@ async function fixture() {
   const installation = {
     version: 'v0.0.14', releaseUrl: 'https://github.com/openai/tunnel-client/releases/tag/v0.0.14',
     architecture: process.arch === 'x64' ? 'amd64' : process.arch, platform: process.platform,
-    executable: client, executableSha256: sha256,
+    executable: path.relative(clientRoot, client).split(path.sep).join('/'), executableSha256: sha256,
   };
   await writeFile(installPath, JSON.stringify(installation));
   const observations = path.join(configDir, 'observations.jsonl');
@@ -292,6 +292,17 @@ test('connect doctor-only exits without starting a panel or emitting a private l
     assert.equal(await readFile(f.config.configPath, 'utf8'), source);
     await assert.rejects(access(path.join(f.config.stateDir, 'tunnel', 'launcher.lock')), { code: 'ENOENT' });
   } finally { await f.clean(); }
+});
+
+test('legacy absolute tunnel client path inside the verified install root remains accepted', async () => {
+  const f = await fixture();
+  try {
+    await writeFile(f.installPath, JSON.stringify({ ...f.installation, executable: f.client }));
+    await runTunnel(f.config, { doctorOnly: true });
+    assert.deepEqual((await f.records()).map(record => record.verb), ['doctor']);
+  } finally {
+    await f.clean();
+  }
 });
 
 test('installation metadata rejects wrong origin, version, hash and paths before a client starts', async () => {

@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.16.0-preview.17 — 2026-09-21
+
+- 修复官方 tunnel-client 安装清单把 `executable` / `archive` 写成安装机器绝对路径的问题；新安装改为保存相对 `toolsDir/tunnel-client` 的可移植路径，换目录或另一台电脑重新安装后不会因旧机器盘符/路径被误判为 `TUNNEL_CLIENT_INVALID`。
+- 保留官方 release 来源、平台/架构、目录边界、SHA-256 和执行权限校验；旧版绝对路径清单仅在仍指向当前受控安装目录内部时继续兼容。
+- setup 与 Tunnel 合成测试改用相对路径清单，并核对记录路径可解析回实际安装文件。
+- npm 发布验收现在实际执行 `webcodex --help` 与 `webcodex-mcp --help` 两个安装后入口；快速开始区分全局 `npm install -g` 和项目内 `npm install`，避免把未进入 PATH 的本地安装误报为命令缺失。
+
 ## 0.16.0-preview.16 — 2026-09-16
 
 - npm 包新增 `webcodex` 命令入口，与现有 `webcodex-mcp` 指向同一 CLI；简短命令可直接执行 `webcodex init/connect/access`，旧命令保持兼容。
