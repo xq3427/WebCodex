@@ -45,7 +45,7 @@ async function exercise(client:Client,f:Fixture) {
   const call=(name:string,input:Record<string,unknown>={})=>client.callTool({name,arguments:input});
   const status=data(await call('system_status'));assert.equal(status.version,VERSION);
   const ws={workspace_id:'default'},owner={...ws,expected_device_id:status.device_id};
-  const tools=(await client.listTools()).tools;assert.equal(tools.length,66);
+  const tools=(await client.listTools()).tools;assert.equal(tools.length,72);
   for(const name of ['fs_batch_preview','fs_batch_status'])assert.equal(tools.find(tool=>tool.name===name)?.annotations?.readOnlyHint,true);
   for(const name of ['fs_batch_apply','exec_write_stdin']) {
     const tool=tools.find(tool=>tool.name===name)!;assert.ok(tool.inputSchema.required?.includes('expected_device_id'));

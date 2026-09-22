@@ -2,7 +2,7 @@
   "server": {
     "name": "webcodex-mcp",
     "title": "WebCodex · Example device",
-    "version": "0.16.0-preview.17"
+    "version": "0.16.0-preview.18"
   },
   "tools": [
     {
@@ -88,6 +88,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -209,6 +280,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -370,6 +512,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -507,6 +720,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -681,6 +965,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -805,6 +1160,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -970,6 +1396,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -1148,6 +1645,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1281,6 +1849,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1410,6 +2049,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -1549,6 +2259,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1672,6 +2453,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1774,6 +2626,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -1885,6 +2808,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -1999,6 +2993,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -2131,6 +3196,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -2143,6 +3279,1265 @@
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_list",
+      "description": "List WebCodex MCP work sessions stored inside the selected workspace. These are bounded tool-activity records and explicit checkpoints, not the full ChatGPT transcript. Use workspace_id from workspace_list and keep projects isolated. Follow next_cursor with the same workspace and archive filter.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "include_archived": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_read",
+      "description": "Read one workspace-scoped WebCodex session journal page. The journal contains MCP tool names, outcomes, redacted relative paths, checkpoints and caller-supplied user/assistant turns; it never exposes the raw host session ID, credentials or Base64, and it cannot recover messages that were not explicitly submitted through web_session_turn.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "session_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Workspace-scoped WebCodex session key returned by web_session_list/bind."
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "workspace_id",
+          "session_key"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_resume_context",
+      "description": "Build a small recovery context for the selected workspace from the current WebCodex session and recent workspace sessions. Call this after workspace_list when starting a new web conversation. It cannot recover ordinary ChatGPT text that was never sent through MCP.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "session_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Workspace-scoped WebCodex session key returned by web_session_list/bind."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_bind",
+      "description": "Give the current WebCodex session a human title and optional project label. If the host does not provide openai/session, pass a session_key returned by an earlier bind. This writes only a workspace-local journal record.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "project_label": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "session_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Workspace-scoped WebCodex session key returned by web_session_list/bind."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "title",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_checkpoint",
+      "description": "Save an explicit recovery checkpoint in the current workspace. Use after a meaningful stage so a later web conversation can resume without the original transcript. Checkpoint text is caller supplied and is redacted before storage.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "session_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Workspace-scoped WebCodex session key returned by web_session_list/bind."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "completed": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "maxItems": 50
+          },
+          "next_steps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "maxItems": 50
+          },
+          "important_files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Path relative to the workspace; absolute paths and protected directories are rejected."
+            },
+            "maxItems": 50
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "title",
+          "summary",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "web_session_turn",
+      "description": "Persist one complete user message and the GPT reply in the current workspace session. Call this once after composing the reply, before sending it to the user. Both fields are caller supplied and redacted before storage; this is explicit journaling, not automatic transcript capture. Reuse idempotency_key only for the identical pair.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Authorized workspace_id returned by workspace_list."
+          },
+          "session_key": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Workspace-scoped WebCodex session key returned by web_session_list/bind."
+          },
+          "user_message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "assistant_reply": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "idempotency_key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,128}$",
+            "description": "Unique operation ID. Reuse only for an identical retry."
+          },
+          "expected_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "device_id from this server system_status/workspace_list. Confirm the intended device before mutations."
+          }
+        },
+        "required": [
+          "workspace_id",
+          "user_message",
+          "assistant_reply",
+          "idempotency_key",
+          "expected_device_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "device_name": {
+                "type": "string"
+              },
+              "instance_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "device_name",
+              "instance_id"
+            ],
+            "additionalProperties": false
+          },
+          "data": {},
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {},
+              "retryable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "parent_not_found",
+                  "target_not_found"
+                ]
+              },
+              "recovery": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "instruction": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "action",
+                  "instruction",
+                  "tools"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
         "idempotentHint": true,
         "openWorldHint": false
       },
@@ -2316,6 +4711,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -2514,6 +4980,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -2635,6 +5172,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -2768,6 +5376,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -2920,6 +5599,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3040,6 +5790,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -3218,6 +6039,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3348,6 +6240,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3467,6 +6430,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -3598,6 +6632,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3726,6 +6831,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -3874,6 +7050,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -4145,6 +7392,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -4429,6 +7747,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -4547,6 +7936,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -4687,6 +8147,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -4841,6 +8372,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -4972,6 +8574,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -5122,6 +8795,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -5243,6 +8987,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -5373,6 +9188,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -5521,6 +9407,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -5633,6 +9590,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -5751,6 +9779,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -5914,6 +10013,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -6043,6 +10213,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -6184,6 +10425,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -6315,6 +10627,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -6432,6 +10815,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -6568,6 +11022,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -6701,6 +11226,77 @@
               "message"
             ],
             "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -6825,6 +11421,77 @@
             "required": [
               "code",
               "message"
+            ],
+            "additionalProperties": false
+          },
+          "journal": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "unbound",
+                  "clean",
+                  "pending",
+                  "committed",
+                  "stale_pending",
+                  "unavailable"
+                ]
+              },
+              "workspace_id": {
+                "type": "string"
+              },
+              "session_key": {
+                "type": "string"
+              },
+              "activity_epoch_id": {
+                "type": "string"
+              },
+              "tool_calls_since_commit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "committed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "required_before_final_reply": {
+                "type": "boolean"
+              },
+              "required_tool": {
+                "type": "string",
+                "const": "web_session_turn"
+              },
+              "instruction_code": {
+                "type": "string",
+                "enum": [
+                  "SELECT_WORKSPACE",
+                  "BIND_SESSION",
+                  "COMMIT_BEFORE_FINAL_REPLY",
+                  "SEND_FINAL_REPLY_NOW",
+                  "JOURNAL_UNAVAILABLE"
+                ]
+              },
+              "error_code": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "state",
+              "required_before_final_reply",
+              "instruction_code"
             ],
             "additionalProperties": false
           }
@@ -7126,13 +11793,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.17.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.18.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.17.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.18.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original file",
         "openai/toolInvocation/invoked": "Original file ready in component"
@@ -7413,13 +12080,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.17.html",
+          "resourceUri": "ui://webcodex/file-feasibility-0.16.0-preview.18.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.17.html",
+        "openai/outputTemplate": "ui://webcodex/file-feasibility-0.16.0-preview.18.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing file upload check",
         "openai/toolInvocation/invoked": "Check upload support in the component"
@@ -7789,13 +12456,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.17.html",
+          "resourceUri": "ui://webcodex/reading-relay-0.16.0-preview.18.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.17.html",
+        "openai/outputTemplate": "ui://webcodex/reading-relay-0.16.0-preview.18.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing content relay check",
         "openai/toolInvocation/invoked": "Component prepared; content not yet returned"
@@ -8304,13 +12971,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/document-0.16.0-preview.17.html",
+          "resourceUri": "ui://webcodex/document-0.16.0-preview.18.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.17.html",
+        "openai/outputTemplate": "ui://webcodex/document-0.16.0-preview.18.html",
         "openai/widgetAccessible": true,
         "openai/toolInvocation/invoking": "Preparing original PDF for reading",
         "openai/toolInvocation/invoked": "PDF prepared; page text pending"
@@ -9332,13 +13999,13 @@
       },
       "_meta": {
         "ui": {
-          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.17.html",
+          "resourceUri": "ui://webcodex/file-save-0.16.0-preview.18.html",
           "visibility": [
             "model",
             "app"
           ]
         },
-        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.17.html",
+        "openai/outputTemplate": "ui://webcodex/file-save-0.16.0-preview.18.html",
         "openai/widgetAccessible": true,
         "openai/fileParams": [
           "file"

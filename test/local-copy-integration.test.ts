@@ -83,7 +83,7 @@ async function fixture(t: TestContext) {
 
 test('stdio copies a 1.6 MiB PDF across Chinese workspace paths with execution disabled and a read-only source', async t => {
   const f = await fixture(t), tools = (await f.client.listTools()).tools;
-  assert.equal(tools.length,66);
+  assert.equal(tools.length,72);
   const copy = tools.find(tool => tool.name === 'fs_copy');
   assert.ok(copy, 'Local copy is publicly discoverable over MCP.');
   assert.equal(copy.annotations?.readOnlyHint, false);

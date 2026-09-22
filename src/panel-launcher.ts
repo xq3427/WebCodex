@@ -83,11 +83,17 @@ export async function startManagedPanel(config: AppConfig, options: ManagedPanel
   let fallbackUsed = false;
   const management = { config: new PanelConfigService(config.configPath), runtime: manager };
   try {
-    try { listener = await startLocalPanel(config, { port, management }); }
+    try { listener = await startLocalPanel(config, { port, management, onRuntimeAction: (action, status) => {
+      const state = status && typeof status === 'object' && 'state' in status ? String((status as { state?: unknown }).state) : 'unknown';
+      progressWrite(`[WebCodex] Dashboard requested service ${action}; current state: ${state}.\n`);
+    }}); }
     catch (error) {
       if (!options.fallbackPort || port === 0 || !ownsPort(error)) throw error;
       fallbackUsed = true;
-      listener = await startLocalPanel(config, { port: 0, management });
+      listener = await startLocalPanel(config, { port: 0, management, onRuntimeAction: (action, status) => {
+        const state = status && typeof status === 'object' && 'state' in status ? String((status as { state?: unknown }).state) : 'unknown';
+        progressWrite(`[WebCodex] Dashboard requested service ${action}; current state: ${state}.\n`);
+      }});
     }
   } catch (error) {
     await close();

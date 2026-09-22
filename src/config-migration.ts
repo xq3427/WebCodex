@@ -204,6 +204,7 @@ export async function migrateConfiguration(input: { source: string; output: stri
   next.tasks = current.tasks ?? next.tasks;
   next.projectContext = current.projectContext ?? next.projectContext;
   next.fileBatches = current.fileBatches ?? next.fileBatches;
+  next.sessions = current.sessions ?? next.sessions;
   next.codexSessions = { ...current.codexSessions, home: current.codexSessions.home };
   next.server = current.server ?? { transport: 'stdio' };
   next.http = { ...current.http, bearerToken: current.http.bearerToken ?? '' };

@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.16.0-preview.18 — 2026-09-22
+
+- `init` 在用户填写 Tunnel ID 和 API key 后自动安装并校验官方 tunnel-client；全新 npm 安装不再生成缺少客户端的配置并在 `connect` 阶段才失败。
+- `connect` 对旧配置执行本地客户端清单检查；发现缺失安装时自动复用受校验的安装流程修复后再连接。
+- 控制面板保存并重启保持同一面板进程和凭据；允许回环地址的合法 SSH/反向端口转发组合，不再因 Host 与 Origin 端口被转发层改写而返回 `REQUEST_ORIGIN_DENIED`。
+- 保留回环地址、Bearer 凭据、Fetch Metadata 和官方客户端 SHA-256 校验；外部来源仍会被拒绝。
+
 ## 0.16.0-preview.17 — 2026-09-21
 
 - 修复官方 tunnel-client 安装清单把 `executable` / `archive` 写成安装机器绝对路径的问题；新安装改为保存相对 `toolsDir/tunnel-client` 的可移植路径，换目录或另一台电脑重新安装后不会因旧机器盘符/路径被误判为 `TUNNEL_CLIENT_INVALID`。

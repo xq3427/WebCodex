@@ -22,11 +22,24 @@ const workspaceSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/)
 const executionSchema = z.object({ mode: z.enum(['disabled','trusted-host']).default('disabled'), commandPolicy: z.enum(['all','allowlist']).default('allowlist'), allowedExecutables: z.record(executableSchema).default({}), maxConcurrent: z.number().int().min(1).max(8).default(2), maxTimeoutMs: z.number().int().min(100).max(86400000).default(600000), maxOutputBytes: z.number().int().min(1024).max(52428800).default(5242880) }).strict();
 const codexSchema = z.object({ enabled: z.boolean().default(false), home: text.nullable().default(null) }).strict();
 const fileWidgetSchema = z.object({ mode: z.enum(['automatic', 'manual']).default('automatic'), compact: z.boolean().default(true), closeAfterSend: z.boolean().default(true) }).strict();
+const sessionsSchema = z.object({
+  enabled: z.boolean().default(true),
+  directory: text.default('.webcodex/sessions').refine(value => !path.isAbsolute(value) && !value.split(/[\\/]+/).includes('..')),
+  retentionDays: z.number().int().min(1).max(3650).default(90),
+  maxEvents: z.number().int().min(100).max(100000).default(2000),
+  maxBytes: z.number().int().min(1048576).max(1073741824).default(33554432),
+  recordToolArguments: z.enum(['none', 'redacted']).default('redacted'),
+  recordToolResults: z.enum(['none', 'summary']).default('summary'),
+  remindBeforeFinalReply: z.boolean().default(true),
+  journalStatusInToolResults: z.boolean().default(true),
+  stalePendingMinutes: z.number().int().min(1).max(10080).default(30),
+}).strict();
 const baseSchema = z.object({
   version: z.literal(1), stateDir: text,
   workspaces: z.array(workspaceSchema).min(1).max(32),
   execution: executionSchema,
   fileWidget: fileWidgetSchema.default({}),
+  sessions: sessionsSchema.default({}),
   diagnostics: z.object({ enabled: z.boolean().default(true), maxEvents: z.number().int().min(20).max(10000).default(1000) }).strict().default({}),
   limits: z.object({ readMaxBytes: z.number().int().min(256).max(1048576).default(65536), fileReadMaxBytes: z.number().int().min(1024).max(134217728).default(16777216), fileTransferMaxBytes: z.number().int().min(1).max(7340032).optional(), fileWidgetUploadMaxBytes: z.number().int().min(1).max(536870912).optional(), fileWidgetTicketTtlMs: z.number().int().min(1000).max(1800000).optional(), fileWidgetCacheMaxBytes: z.number().int().min(1).max(268435456).optional(), fileWidgetChunkMaxBytes: z.number().int().min(4096).max(262144).optional(), binaryWriteMaxBytes: z.number().int().min(1024).max(134217728).optional(), inlineBinaryWriteMaxBytes: z.number().int().min(1024).max(1048576).optional(), writeMaxBytes: z.number().int().min(1024).max(4194304).default(1048576), searchMaxResults: z.number().int().min(1).max(1000).default(100), listMaxEntries: z.number().int().min(1).max(1000).default(200) }).strict().default({}),
   rgPath: text.default('rg'),
@@ -56,6 +69,7 @@ const v2Schema = baseSchema.extend({
   actionsProbe: z.object({ enabled: z.boolean().default(false), apiKey: secret.default(''), publicBaseUrl: z.string().max(2048).default(''), port: z.number().int().min(1024).max(65535).default(8766), quickTunnel: z.object({ clientPath: text.default('auto'), startupTimeoutMs: z.number().int().min(10000).max(180000).default(60000), proxyUrl: secret.optional() }).strict().default({}) }).strict().optional(),
   localPanel: z.object({ port: z.number().int().min(1024).max(65535).default(8767) }).strict().default({}),
   nativeAttachment: nativeAttachmentSchema.optional(),
+  sessions: sessionsSchema.default({}),
   execution: executionSchema.extend({ profiles: z.record(profileSchema).refine(value => Object.keys(value).length <= 32).optional(), defaultTimeoutMs: z.number().int().min(100).max(86400000).default(60000), env:z.record(z.string()).refine(validExecutionEnvironment).optional(), defaultWaitMs:z.number().int().min(0).max(20000).default(1000),maxWaitMs:z.number().int().min(1).max(20000).default(20000),stdinMaxBytes:z.number().int().min(1).max(1048576).default(65536),stdinMaxTotalBytes:z.number().int().min(1).max(16777216).default(1048576),stdinWriteTimeoutMs:z.number().int().min(100).max(20000).default(5000) }),
   fileBatches:z.object({maxFiles:z.number().int().min(1).max(100).default(20),maxTotalBytes:z.number().int().min(1024).max(33554432).default(4194304),binaryMaxTotalBytes:z.number().int().min(1024).max(536870912).optional()}).strict().default({}),
   fileImports:z.object({maxAttempts:z.number().int().min(1).max(10).default(3),downloadTimeoutMs:z.number().int().min(1000).max(300000).default(60000)}).strict().optional(),
@@ -76,6 +90,7 @@ export function defaultConfig(root: string, configPath: string) {
     workspaces: [{ id: 'default', name: path.basename(root) || 'Workspace', root: path.resolve(root), readOnly: false }],
     execution: { mode: 'disabled' as const, allowedExecutables: { node: process.execPath }, maxConcurrent: 2, maxTimeoutMs: 600000, maxOutputBytes: 5242880 },
     fileWidget: { mode: 'automatic' as const, compact: true, closeAfterSend: true },
+    sessions: { enabled: true, directory: '.webcodex/sessions', retentionDays: 90, maxEvents: 2000, maxBytes: 33554432, recordToolArguments: 'redacted' as const, recordToolResults: 'summary' as const, remindBeforeFinalReply: true, journalStatusInToolResults: true, stalePendingMinutes: 30 },
     diagnostics: { enabled: true, maxEvents: 1000 },
     limits: { readMaxBytes: 65536, fileReadMaxBytes: 16777216, writeMaxBytes: 1048576, searchMaxResults: 100, listMaxEntries: 200 },
     rgPath: 'rg', http: { port: 8765 }, codexSessions: { enabled: false, home: null as string | null }
@@ -100,6 +115,7 @@ export function defaultUnifiedConfig(root: string, configPath: string, options: 
     remotes: {},
     server: { transport: 'stdio' as const }, http: { port: 8765, bearerToken: '' },
     localPanel: { port: 8767 },
+    sessions: { enabled: true, directory: '.webcodex/sessions', retentionDays: 90, maxEvents: 2000, maxBytes: 33554432, recordToolArguments: 'redacted' as const, recordToolResults: 'summary' as const, remindBeforeFinalReply: true, journalStatusInToolResults: true, stalePendingMinutes: 30 },
     codexSessions: { enabled: false, home: null as string | null, maxWindowsPerRequest: 4, maxRecordBytes: 1048576 }
   };
 }

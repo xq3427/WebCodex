@@ -182,7 +182,7 @@ for (const transport of ['stdio', 'http'] as const) {
     const configBefore = await readFile(f.configPath), connection = await connect(f.configPath, transport);
     try {
       const tools = (await connection.client.listTools()).tools;
-      assert.equal(tools.length,66);
+      assert.equal(tools.length,72);
       const tool = tools.find(item => item.name === 'file_widget_probe')!;
       assert.ok(tool); assert.equal(tool.annotations?.readOnlyHint, true); assert.equal(tool.annotations?.openWorldHint, false);
       const metadata = tool._meta as any;

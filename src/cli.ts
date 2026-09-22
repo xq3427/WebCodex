@@ -30,6 +30,7 @@ import { inspectDocumentWidgetAsset } from './document-widget.js';
 import { disableActionsProbe } from './config-admin.js';
 import { createInterface } from 'node:readline/promises';
 import { setupConfiguration, userConfigPath } from './setup.js';
+import { installSetupTools } from './setup-tools.js';
 import { checkLocalAccess } from './local-access.js';
 
 const help=`WebCodex MCP ${VERSION} (Node >=22.16)
@@ -188,6 +189,22 @@ async function main() {
     const raw=defaultUnifiedConfig(root,configPath,{fullLocalAccess:true});
     raw.http.bearerToken=randomBytes(32).toString('hex');
     if (!values['no-tunnel']) await configureTunnelCredentials(raw);
+    // `init` is the primary npm quick-start command. When the user actually
+    // configured a Tunnel, install the verified native client in the same
+    // operation so a fresh npm installation never writes a config that can
+    // only fail later with TUNNEL_CLIENT_INVALID. Non-interactive init and
+    // --no-tunnel remain offline and do not download anything.
+    if (raw.tunnel?.enabled) {
+      const toolsDir = path.resolve(path.dirname(configPath), 'tools');
+      const tools = await installSetupTools({
+        toolsDir,
+        onProgress: message => process.stderr.write('[WebCodex] ' + message + '\n'),
+      });
+      raw.nodePath = tools.nodePath;
+      raw.gitPath = tools.gitPath;
+      raw.rgPath = tools.rgPath;
+      raw.toolsDir = toolsDir;
+    }
     await validateConfig(raw,configPath);
     await writePrivateConfig(configPath,raw);
     process.stdout.write(JSON.stringify({ok:true,config:configPath,workspace:root,workspace_access:'read-write',execution_mode:'trusted-host',command_policy:'all'},null,2)+'\n');return;
@@ -230,6 +247,24 @@ async function main() {
     if (panelChild && loaded.server?.transport !== 'http') throw new AppError('CONFIG_ERROR','The managed IPC launcher requires HTTP transport.');
     return loaded;
   })();
+  // Repair older npm installations whose configuration was created before
+  // `init` installed the official tunnel client. The check is local and
+  // bounded; an already verified installation is reused without downloading.
+  if (command === 'connect' && config.tunnel?.enabled && config.tunnel.clientPath === 'auto') {
+    const toolsDir = path.resolve(config.toolsDir ?? path.join(path.dirname(config.configPath), 'tools'));
+    try { await access(path.join(toolsDir, 'tunnel-client', 'install.json')); }
+    catch {
+      const tools = await installSetupTools({
+        toolsDir,
+        gitPath: config.gitPath === 'auto' ? undefined : config.gitPath,
+        rgPath: config.rgPath === 'auto' ? undefined : config.rgPath,
+        proxyUrl: config.tunnel.proxyUrl,
+        onProgress: message => process.stderr.write('[WebCodex] ' + message + '\n'),
+      });
+      process.stderr.write('[WebCodex] Missing tunnel-client repaired before connect.\n');
+      void tools;
+    }
+  }
   if (panelChild && (panelStopRequested || !process.connected)) { if (process.connected) process.disconnect(); return; }
   if(key==='execution inspect'){print(await inspectExecution(config));return;}
   if(key==='config validate'){print({ok:true,config:configPath,version:config.version,device_id:config.device?.id??null});return;}

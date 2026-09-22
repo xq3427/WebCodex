@@ -9,10 +9,10 @@
 需要 Node.js 22.16 或更高版本：
 
 ```powershell
-npm install -g webcodex-mcp@0.16.0-preview.17
+npm install -g webcodex-mcp@0.16.0-preview.18
 ```
 
-如果你希望得到平铺的独立目录（不出现 `node_modules/webcodex-mcp`），请使用 [GitHub 一键安装包](https://github.com/xq3427/WebCodex/releases/tag/v0.16.0-preview.17)。npm 的目录层级由 npm 固定管理，不能由包安全地改成平铺结构。
+如果你希望得到平铺的独立目录（不出现 `node_modules/webcodex-mcp`），请使用 [GitHub 一键安装包](https://github.com/xq3427/WebCodex/releases/tag/v0.16.0-preview.18)。npm 的目录层级由 npm 固定管理，不能由包安全地改成平铺结构。
 
 ### 2. 初始化
 
@@ -37,6 +37,7 @@ webcodex connect
 - [配置与控制面板](docs/local-configuration.md)
 - [文件操作与回存](docs/file-workflow.md)
 - [工具清单](docs/tools.json)
+- [网页会话工作记录](docs/web-session-journal.md)
 - [更新记录](CHANGELOG.md)
 
 ## 常用命令
@@ -48,6 +49,8 @@ webcodex access check
 ```
 
 `webcodex-mcp` 与 `webcodex` 指向同一个 CLI。程序权限受启动它的操作系统账户限制；`trusted-host + all` 不会绕过 Windows ACL、Linux 权限或管理员/UAC。
+
+需要保存网页对话中的用户消息和 GPT 回复时，GPT 在回复前调用 `web_session_turn`；这是显式记录，不会自动拦截网页 transcript。
 
 ## 开发与许可证
 

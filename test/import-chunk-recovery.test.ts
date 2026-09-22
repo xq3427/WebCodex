@@ -120,7 +120,7 @@ for (const scenario of [
 
   // Reading error recovery and metadata cannot create a source or alter a file.
   // Only the independently available synthetic original below supplies bytes.
-  const tools = (await f.client.listTools()).tools; assert.equal(tools.length,66);
+  const tools = (await f.client.listTools()).tools; assert.equal(tools.length,72);
   const status = await f.call('system_status');
   assert.equal(status.capabilities.file_routes.binary.default_write, 'fs_save_file');
   assert.equal(status.capabilities.file_routes.binary.chunk_write, 'fs_write_binary_chunk');

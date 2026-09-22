@@ -37,7 +37,7 @@ async function fixture(t: TestContext) {
 
 test('MCP discovery distinguishes configured byte limits from unverified model-mediated file relay', async t => {
   const f = await fixture(t), tools = (await f.client.listTools()).tools, status = await f.call('system_status');
-  assert.equal(tools.length,66);
+  assert.equal(tools.length,72);
   for (const capability of [status.capabilities.file_routes.binary, status.capabilities.file_routes.images, status.capabilities.binary_chunk_write]) {
     assert.equal(capability.model_relay_verified, false);
     assert.equal(capability.large_file_model_relay_recommended, false);

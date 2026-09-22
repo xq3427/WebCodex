@@ -4,6 +4,18 @@ export type ExecutableConfig = string | { command: string; args: string[] };
 export interface ExecutionProfile { allowedExecutables: Record<string, ExecutableConfig>; env?: Record<string, string> }
 export interface RemoteHostConfig { name?: string; host: string; port: number; user: string; identityFile: string; projectRoot?: string; knownHostsFile?: string; strictHostKeyChecking?: boolean }
 export interface FileWidgetConfig { mode: 'automatic' | 'manual'; compact: boolean; closeAfterSend: boolean }
+export interface WebSessionConfig {
+  enabled: boolean;
+  directory: string;
+  retentionDays: number;
+  maxEvents: number;
+  maxBytes: number;
+  recordToolArguments: 'none' | 'redacted';
+  recordToolResults: 'none' | 'summary';
+  remindBeforeFinalReply?: boolean;
+  journalStatusInToolResults?: boolean;
+  stalePendingMinutes?: number;
+}
 /** Legacy settings are accepted for migration only; no browser worker is shipped. */
 export interface NativeAttachmentConfig {
   enabled: boolean;
@@ -29,6 +41,7 @@ export interface AppConfig {
   fileImports?: {maxAttempts:number;downloadTimeoutMs:number};
   binaryInputs?: {chunkMaxBytes:number;maxSessions:number;maxCacheBytes:number;ttlMs:number};
   fileWidget?: FileWidgetConfig;
+  sessions: WebSessionConfig;
   nativeAttachment?: NativeAttachmentConfig;
   diagnostics?: { enabled: boolean; maxEvents: number };
   actionsProbe?: ActionsProbeConfig;

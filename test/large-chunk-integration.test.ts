@@ -118,7 +118,7 @@ for (const mode of ['stdio', 'http'] as const) for (const configuredChunkSize of
     const call = async (name: string, args: Record<string, unknown> = {}) => successful(await raw(name, args));
     try {
       const tools = (await connection.client.listTools()).tools;
-      assert.equal(tools.length,66);
+      assert.equal(tools.length,72);
       const chunkTool = tools.find(tool => tool.name === 'fs_write_binary_chunk')!;
       const schema = chunkTool.inputSchema.properties as Record<string, any>;
       assert.equal(schema.content_base64.maxLength, Math.ceil(chunkSize / 3) * 4);

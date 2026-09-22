@@ -22,7 +22,7 @@ async function fixture() {
 }
 function result(value:any) {assert.equal(value.isError,undefined,JSON.stringify(value));assert.equal(value.structuredContent?.ok,true);return value.structuredContent.data;}
 async function codingLoop(client:Client,root:string) {
-  const advertised=await client.listTools();assert.equal(advertised.tools.length,66);
+  const advertised=await client.listTools();assert.equal(advertised.tools.length,72);
   const byName=new Map(advertised.tools.map(t=>[t.name,t]));
   for(const name of ['attachment_bind','attachment_start','attachment_status','attachment_cancel']) assert.equal(byName.has(name),false);
   assert.equal(byName.get('fs_read')?.annotations?.readOnlyHint,true);

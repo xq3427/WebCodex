@@ -166,7 +166,7 @@ function body(req: IncomingMessage, limit = BODY_LIMIT): Promise<Record<string, 
   });
 }
 
-export async function startLocalPanel(inputConfig: AppConfig, options: { port?: number; reveal?: (directory: string) => Promise<void>; management?: { config: PanelConfigService; runtime: PanelRuntime } } = {}) {
+export async function startLocalPanel(inputConfig: AppConfig, options: { port?: number; reveal?: (directory: string) => Promise<void>; management?: { config: PanelConfigService; runtime: PanelRuntime }; onRuntimeAction?: (action: string, status: unknown) => void } = {}) {
   let config = structuredClone(inputConfig);
   let workspaceBindings = new Map(config.workspaces.map(workspace => [workspace.id, inspectWorkspace(config, workspace).fingerprint ?? null]));
   bindWorkspaceRuntime(config, workspaceBindings);
@@ -283,7 +283,14 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
         if (req.method === 'POST' && ['/api/config/validate', '/api/config/save', '/api/runtime', '/api/access-check'].includes(url.pathname)) {
           // Administrative writes require an explicit same-origin browser request,
           // in addition to the private per-panel bearer token. No CORS support.
-          if (originPort === null || originPort !== hostPort || req.headers['sec-fetch-site'] !== undefined && req.headers['sec-fetch-site'] !== 'same-origin') { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
+          // The bearer token already authenticates the owner. For SSH -L,
+          // reverse forwarding and localhost/127.0.0.1 aliases, the browser's
+          // Origin port can legitimately differ from the upstream Host port.
+          // Keep both authorities loopback-only, but do not reject a valid
+          // authenticated request merely because a forwarding layer rewrote
+          // one of the ports. Cross-site fetches remain blocked by requiring a
+          // loopback Origin and (when supplied) same-origin fetch metadata.
+          if (originPort === null || req.headers['sec-fetch-site'] !== undefined && !['same-origin', 'same-site', 'none'].includes(req.headers['sec-fetch-site'])) { fail(403, 'REQUEST_ORIGIN_DENIED'); return; }
           if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(req.headers['content-type'] ?? '') || req.headers['content-encoding'] !== undefined) { fail(415, 'JSON_REQUIRED'); return; }
           if (Number(req.headers['content-length'] ?? 0) > ADMIN_BODY_LIMIT) { fail(413, 'REQUEST_TOO_LARGE'); return; }
           const input = await body(req, ADMIN_BODY_LIMIT);
@@ -294,7 +301,9 @@ export async function startLocalPanel(inputConfig: AppConfig, options: { port?: 
           }
           if (url.pathname === '/api/runtime') {
             if (Object.keys(input).some(key => !['action','expected_revision'].includes(key)) || !['start','stop','restart'].includes(String(input.action)) || input.expected_revision !== undefined && (typeof input.expected_revision !== 'string' || !/^[a-f0-9]{64}$/.test(input.expected_revision))) throw new AppError('INVALID_ARGUMENT', 'Select a service action and current configuration revision.');
-            send(res, 200, await management.runtime.action(input as unknown as Parameters<PanelRuntime['action']>[0])); return;
+            const result = await management.runtime.action(input as unknown as Parameters<PanelRuntime['action']>[0]);
+            try { options.onRuntimeAction?.(String(input.action), result.status); } catch { /* logging cannot affect the action */ }
+            send(res, 200, result); return;
           }
           if (url.pathname === '/api/config/validate') { send(res, 200, await management.config.validate(input as Parameters<PanelConfigService['validate']>[0])); return; }
           const result = await management.config.save(input as Parameters<PanelConfigService['save']>[0]);

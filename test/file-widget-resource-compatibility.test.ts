@@ -94,7 +94,7 @@ for (const mode of ['stdio', 'http'] as const) {
       assert.equal((await c.client.listResourceTemplates()).resourceTemplates.length, 0, 'Compatibility must not introduce a wildcard resource template.');
 
       const tools = await c.client.listTools();
-      assert.equal(tools.tools.length, 66);
+      assert.equal(tools.tools.length, 72);
       for (const name of ['fs_open_file', 'file_widget_probe']) {
         const metadata = tools.tools.find(tool => tool.name === name)!._meta as any;
         assert.equal(metadata.ui.resourceUri, FILE_WIDGET_URI);

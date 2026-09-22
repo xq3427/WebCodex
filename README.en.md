@@ -9,10 +9,10 @@ WebCodex lets ChatGPT use MCP to work with local workspaces you authorize: read,
 Node.js 22.16 or newer is required:
 
 ```powershell
-npm install -g webcodex-mcp@0.16.0-preview.17
+npm install -g webcodex-mcp@0.16.0-preview.18
 ```
 
-For a flat standalone directory without `node_modules/webcodex-mcp`, use the [GitHub setup package](https://github.com/xq3427/WebCodex/releases/tag/v0.16.0-preview.17). npm controls its installation layout and packages cannot safely change it to a flat tree.
+For a flat standalone directory without `node_modules/webcodex-mcp`, use the [GitHub setup package](https://github.com/xq3427/WebCodex/releases/tag/v0.16.0-preview.18). npm controls its installation layout and packages cannot safely change it to a flat tree.
 
 ### 2. Initialize
 

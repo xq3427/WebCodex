@@ -132,6 +132,16 @@ function recoveryFor(code: string, missing?: { reason: MissingWorkspacePathReaso
       return { action: 'verify_target_path', instruction: 'Check the requested workspace-relative file or directory path with fs_list. Correct a missing or mistaken target before retrying.', tools: ['fs_list'] };
     case 'DEVICE_MISMATCH':
       return { action: 'verify_device', instruction: 'Read system_status and verify the intended device and connection. Do not substitute another device ID just to make the request succeed.', tools: ['system_status'] };
+    case 'SESSION_STORE_INVALID':
+      return { action: 'inspect_session_storage_config', instruction: 'The workspace session directory setting is invalid. Use the local panel or configuration file to choose a relative directory inside the selected workspace, then restart WebCodex.', tools: ['system_status'] };
+    case 'SESSION_STORE_DISABLED':
+      return { action: 'enable_session_storage', instruction: 'Workspace session journaling is disabled in local configuration. Enable sessions.enabled locally and restart WebCodex before retrying.', tools: ['system_status'] };
+    case 'SESSION_NOT_FOUND':
+      return { action: 'list_workspace_sessions', instruction: 'No matching session exists in this workspace and device binding. Call web_session_list for the selected workspace; do not reuse a key from another workspace.', tools: ['web_session_list'] };
+    case 'SESSION_UNBOUND':
+      return { action: 'bind_web_session', instruction: 'The host did not provide an OpenAI session association. Call web_session_bind once with a human title, then reuse its returned session_key for later checkpoints.', tools: ['web_session_bind'] };
+    case 'SESSION_TURN_BUSY':
+      return { action: 'wait_for_session_tools', instruction: 'Other WebCodex tool calls are still running for this session. Wait for their results, then retry web_session_turn with the same idempotency key.', tools: ['web_session_turn'] };
     case 'WORKSPACE_NOT_FOUND':
       return { action: 'select_authorized_workspace', instruction: 'Use workspace_list to select the intended existing authorized workspace_id. A path or display name does not grant access to another project.', tools: ['workspace_list'] };
     case 'WORKSPACE_DISABLED':

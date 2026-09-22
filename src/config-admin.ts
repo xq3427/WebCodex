@@ -20,6 +20,7 @@ export type RawConfig = Record<string, unknown> & {
   workspaces: WorkspaceInput[];
   execution: Record<string, unknown> & { mode?: 'disabled' | 'trusted-host'; allowedExecutables?: Record<string, ExecutableConfig> };
   codexSessions?: { enabled?: boolean; home?: string | null; maxWindowsPerRequest?: number; maxRecordBytes?: number };
+  sessions?: { enabled?: boolean; directory?: string; retentionDays?: number; maxEvents?: number; maxBytes?: number; recordToolArguments?: 'none' | 'redacted'; recordToolResults?: 'none' | 'summary'; remindBeforeFinalReply?: boolean; journalStatusInToolResults?: boolean; stalePendingMinutes?: number };
 };
 const idPattern = /^[a-zA-Z0-9_-]{1,64}$/;
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -74,6 +75,7 @@ export function publicConfig(config: AppConfig) {
     binary_inputs:config.binaryInputs??{chunkMaxBytes:12288,maxSessions:4,maxCacheBytes:1048576,ttlMs:900000},
     file_imports:config.fileImports??{maxAttempts:3,downloadTimeoutMs:60000},
     codex_sessions: { enabled: config.codexSessions.enabled, home: config.codexSessions.home, ...(config.codexSessions.maxWindowsPerRequest !== undefined ? { max_windows_per_request: config.codexSessions.maxWindowsPerRequest } : {}), ...(config.codexSessions.maxRecordBytes !== undefined ? { max_record_bytes: config.codexSessions.maxRecordBytes } : {}) },
+    sessions: { enabled: config.sessions.enabled, directory: config.sessions.directory, retention_days: config.sessions.retentionDays, max_events: config.sessions.maxEvents, max_bytes: config.sessions.maxBytes, record_tool_arguments: config.sessions.recordToolArguments, record_tool_results: config.sessions.recordToolResults, remind_before_final_reply: config.sessions.remindBeforeFinalReply ?? true, journal_status_in_tool_results: config.sessions.journalStatusInToolResults ?? true, stale_pending_minutes: config.sessions.stalePendingMinutes ?? 30 },
   };
 }
 
